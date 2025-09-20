@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model activity {
+  id           Int            @id @default(autoincrement())
+  kind         activity_kind
+  title        String
+  description  String?
+  date         DateTime
+  capacity     Int
+  createdAt    DateTime       @default(now())
+  registration registration[]
+}
+
+model attendance {
+  id             Int          @id @default(autoincrement())
+  registrationId Int          @unique(map: "Attendance_registrationId_key")
+  checkinAt      DateTime     @default(now())
+  registration   registration @relation(fields: [registrationId], references: [id], map: "Attendance_registrationId_fkey")
+}
+
+model diploma {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  activityId Int
+  pdfPath    String
+  createdAt  DateTime @default(now())
+}
+
+model registration {
+  id         Int                 @id @default(autoincrement())
+  userId     Int
+  activityId Int
+  qrCodePath String?
+  status     registration_status @default(PENDING)
+  createdAt  DateTime            @default(now())
+  attendance attendance?
+  activity   activity            @relation(fields: [activityId], references: [id], map: "Registration_activityId_fkey")
+  user       user                @relation(fields: [userId], references: [id], map: "Registration_userId_fkey")
+
+  @@index([activityId], map: "Registration_activityId_fkey")
+  @@index([userId], map: "Registration_userId_fkey")
+}
+
+model user {
+  id           Int            @id @default(autoincrement())
+  name         String
+  email        String         @unique(map: "User_email_key")
+  type         user_type
+  school       String?
+  createdAt    DateTime       @default(now())
+  registration registration[]
+}
+
+model winner {
+  id          Int      @id @default(autoincrement())
+  activityId  Int
+  userId      Int
+  place       Int
+  description String?
+  photoUrl    String?
+  createdAt   DateTime @default(now())
+}
+
+enum activity_kind {
+  TALLER
+  COMPETENCIA
+}
+
+enum user_type {
+  INTERNAL
+  EXTERNAL
+}
+
+enum registration_status {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+}
