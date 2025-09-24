@@ -1,10 +1,17 @@
+// server/src/middlewares/admin.middleware.js
 export function requireAdmin(req, res, next) {
-  const key = req.header('x-admin-key') || req.query.adminKey;
+  const key =
+    req.get("x-admin-key") ||
+    req.query.key ||
+    (req.cookies ? req.cookies.adminKey : null);
+
   if (!process.env.ADMIN_KEY) {
-    return res.status(500).json({ message: 'ADMIN_KEY not set in server' });
+    console.warn("⚠️ Falta ADMIN_KEY en .env");
+    return res.status(500).json({ message: "Server misconfigured" });
   }
-  if (key !== process.env.ADMIN_KEY) {
-    return res.status(401).json({ message: 'Unauthorized' });
+
+  if (key && key === process.env.ADMIN_KEY) {
+    return next();
   }
-  next();
+  return res.status(401).json({ message: "Unauthorized" });
 }

@@ -20,4 +20,7 @@ router.post('/', requireAdmin, createWinner);
 router.put('/:id', requireAdmin, updateWinner);
 router.delete('/:id', requireAdmin, deleteWinner);
 
+router.get("/", listWinners); // público
+
+
 export default router;

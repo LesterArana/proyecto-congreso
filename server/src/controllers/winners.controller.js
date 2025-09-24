@@ -8,18 +8,17 @@ const prisma = new PrismaClient();
  * Validaciones
  * ========================= */
 const createWinnerSchema = z.object({
-  activityId: z.number().int().positive(),
-  userId: z.number().int().positive(),
-  place: z.number().int().min(1).max(10),            // 1°, 2°, 3°...
+  activityId: z.coerce.number().int().positive(),
+  userId:     z.coerce.number().int().positive(),
+  place:      z.coerce.number().int().min(1).max(10),
   description: z.string().trim().optional().nullable(),
-  // Aceptamos URL absoluta o ruta relativa servida desde /public
-  photoUrl: z.string().trim().optional().nullable(),
+  photoUrl:    z.string().trim().optional().nullable(),
 });
 
 const updateWinnerSchema = z.object({
-  place: z.number().int().min(1).max(10).optional(),
+  place:       z.coerce.number().int().min(1).max(10).optional(),
   description: z.string().trim().optional().nullable(),
-  photoUrl: z.string().trim().optional().nullable(),
+  photoUrl:    z.string().trim().optional().nullable(),
 });
 
 /* =========================
@@ -49,34 +48,66 @@ export async function createWinner(req, res) {
   try {
     const parsed = createWinnerSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.issues });
+      return res.status(400).json({
+        error: 'Datos inválidos',
+        details: parsed.error.issues,
+      });
     }
+
     const { activityId, userId, place, description, photoUrl } = parsed.data;
 
+    // Validar existencia de FK
     const [act, usr] = await Promise.all([
       prisma.activity.findUnique({ where: { id: activityId } }),
       prisma.user.findUnique({ where: { id: userId } }),
     ]);
-    if (!act) return res.status(404).json({ error: 'Actividad no encontrada' });
-    if (!usr) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (!act) return res.status(404).json({ error: 'Actividad no encontrada', activityId });
+    if (!usr) return res.status(404).json({ error: 'Usuario no encontrado', userId });
 
-    // Evitar duplicar mismo place en la misma actividad
+    // Evitar duplicado de "place" por actividad
     const dup = await prisma.winner.findFirst({ where: { activityId, place } });
     if (dup) {
       return res.status(409).json({ error: `Ya existe un ganador para el lugar ${place} en esta actividad.` });
     }
 
     const w = await prisma.winner.create({
-      data: { activityId, userId, place, description: description || null, photoUrl: photoUrl || null },
-      include: { activity: true, user: true },
+      data: {
+        activityId,
+        userId,
+        place,
+        description: (description ?? '').trim() || null,
+        photoUrl: (photoUrl ?? '').trim() || null,
+      },
     });
 
-    return res.status(201).json({ message: 'Ganador creado', winner: mapWinner(w) });
+    // Traer info para la respuesta (sin usar include por si el client no lo expone)
+    const [act2, usr2] = await Promise.all([
+      prisma.activity.findUnique({ where: { id: w.activityId }, select: { id: true, title: true, kind: true, date: true } }),
+      prisma.user.findUnique({ where: { id: w.userId }, select: { id: true, name: true, email: true, type: true, school: true } }),
+    ]);
+
+    return res.status(201).json({
+      message: 'Ganador creado',
+      winner: {
+        id: w.id,
+        place: w.place,
+        description: w.description,
+        photoUrl: w.photoUrl,
+        createdAt: w.createdAt,
+        activity: act2,
+        user: usr2,
+      },
+    });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Error creando ganador' });
+    console.error('createWinner error:', err);
+    // expón un poco de detalle para depurar rápido en dev
+    return res.status(500).json({
+      error: 'Error creando ganador',
+      detail: err?.code ? `${err.code}: ${err.message}` : String(err?.message || err),
+    });
   }
 }
+
 
 /* =========================
  * Actualizar (ADMIN)
@@ -151,30 +182,66 @@ export async function listWinners(req, res) {
     const year = req.query.year ? Number(req.query.year) : undefined;
     const limit = req.query.limit ? Math.max(1, Math.min(500, Number(req.query.limit))) : undefined;
 
-    const where = {};
+    // 1) Construir filtro base
+    let where = {};
     if (activityId) where.activityId = activityId;
 
-    if (year) {
-      const start = new Date(Date.UTC(year, 0, 1));
-      const end = new Date(Date.UTC(year + 1, 0, 1));
+    // 2) Si viene year, filtra por fecha de la actividad mediante IDs (sin include)
+    if (Number.isInteger(year)) {
+      const gte = new Date(Date.UTC(year, 0, 1));
+      const lt  = new Date(Date.UTC(year + 1, 0, 1));
       const acts = await prisma.activity.findMany({
-        where: { date: { gte: start, lt: end } },
+        where: { date: { gte, lt } },
         select: { id: true },
       });
-      where.activityId = { in: acts.map(a => a.id) };
+      const ids = acts.map(a => a.id);
+      // si no hay actividades para ese año, respondemos vacío
+      if (ids.length === 0) return res.json({ items: [] });
+      where.activityId = activityId ? activityId : { in: ids };
     }
 
+    // 3) Traer ganadores sin include
     const winners = await prisma.winner.findMany({
       where,
-      include: { activity: true, user: true },
       orderBy: [{ activityId: 'asc' }, { place: 'asc' }, { createdAt: 'asc' }],
       take: limit,
     });
 
-    return res.json({ items: winners.map(mapWinner) });
+    if (winners.length === 0) return res.json({ items: [] });
+
+    // 4) Cargar actividades y usuarios relacionados en lote
+    const activityIds = [...new Set(winners.map(w => w.activityId))];
+    const userIds = [...new Set(winners.map(w => w.userId))];
+
+    const [activities, users] = await Promise.all([
+      prisma.activity.findMany({
+        where: { id: { in: activityIds } },
+        select: { id: true, title: true, kind: true, date: true },
+      }),
+      prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true, email: true, type: true, school: true },
+      }),
+    ]);
+
+    const actMap = new Map(activities.map(a => [a.id, a]));
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    // 5) Armar respuesta final similar a mapWinner()
+    const items = winners.map(w => ({
+      id: w.id,
+      place: w.place,
+      description: w.description,
+      photoUrl: w.photoUrl,
+      createdAt: w.createdAt,
+      activity: actMap.get(w.activityId) || null,
+      user: userMap.get(w.userId) || null,
+    }));
+
+    return res.json({ items });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Error listando ganadores' });
+    console.error('listWinners fatal2:', err);
+    return res.status(500).json({ error: 'Error listando ganadores', detail: String(err?.message || err) });
   }
 }
 

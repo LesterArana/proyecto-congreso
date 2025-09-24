@@ -51,29 +51,52 @@ export const listActivities = async (req, res, next) => {
 };
 
 /* Resumen con cupos disponibles */
+// --- Reemplazo robusto de activitiesSummary ---
 export const activitiesSummary = async (req, res, next) => {
   try {
+    // 1) Traemos todas las actividades
     const activities = await prisma.activity.findMany({
-      orderBy: { date: 'asc' },
-      include: { _count: { select: { registrations: true } } },
+      orderBy: { date: "asc" },
+      select: {
+        id: true,
+        kind: true,
+        title: true,
+        description: true,
+        date: true,
+        capacity: true,
+      },
     });
 
-    const data = activities.map((a) => ({
-      id: a.id,
-      kind: a.kind,
-      title: a.title,
-      description: a.description,
-      date: a.date,
-      capacity: a.capacity,
-      registered: a._count.registrations,
-      available: Math.max(0, a.capacity - a._count.registrations),
-    }));
+    // 2) Obtenemos conteo de inscripciones por actividad (evita _count)
+    const grouped = await prisma.registration.groupBy({
+      by: ["activityId"],
+      _count: { _all: true },
+    });
+
+    const counts = new Map(grouped.map(g => [g.activityId, g._count._all]));
+
+    // 3) Armamos respuesta con disponibles
+    const data = activities.map(a => {
+      const registered = counts.get(a.id) || 0;
+      return {
+        id: a.id,
+        kind: a.kind,
+        title: a.title,
+        description: a.description,
+        date: a.date,
+        capacity: a.capacity,
+        registered,
+        available: Math.max(0, a.capacity - registered),
+      };
+    });
 
     res.json(data);
   } catch (err) {
-    next(err);
+    console.error("activitiesSummary error:", err);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 /* =========================
  *  Inscripciones
