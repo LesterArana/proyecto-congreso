@@ -2,6 +2,7 @@
 import { Router } from "express";
 import { requireAdmin } from "../middlewares/admin.middleware.js";
 
+
 // ===== Controlador PÚBLICO (ya tienes estas funcs ahí)
 import {
   listActivities,            // pública
@@ -28,6 +29,7 @@ import {
 import diplomasRoutes from "./diplomas.routes.js";
 import winnersRoutes from "./winners.routes.js";
 import reportsRoutes from "./reports.routes.js";
+import siteRoutes from "./site.routes.js";
 
 const router = Router();
 
@@ -68,6 +70,8 @@ router.use("/winners", winnersRoutes);
 router.use("/reports", reportsRoutes);
 
 router.get("/admin/ping", requireAdmin, (req, res) => res.json({ ok: true }));
+
+router.use("/site", siteRoutes);
 
 
 export default router;

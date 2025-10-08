@@ -1,17 +1,18 @@
-import fs from 'fs';
-import path from 'path';
+// server/src/utils/qr.js
 import QRCode from 'qrcode';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const QR_DIR = path.resolve('public', 'qrs');
+export async function generateQrPng(payload, fileName) {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url)); // .../server/src/utils
+  const outDir = path.resolve(__dirname, '..', '..', 'public', 'qrs'); // 👈 sube dos niveles
+  await fs.mkdir(outDir, { recursive: true });
+  const outPath = path.join(outDir, fileName);
 
-export async function ensureQrDir() {
-  if (!fs.existsSync(QR_DIR)) fs.mkdirSync(QR_DIR, { recursive: true });
-  return QR_DIR;
-}
+  const png = await QRCode.toBuffer(payload, { errorCorrectionLevel: 'M', type: 'png', width: 512 });
+  await fs.writeFile(outPath, png);
 
-export async function generateQrPng(text, fileName) {
-  await ensureQrDir();
-  const filePath = path.join(QR_DIR, fileName);
-  await QRCode.toFile(filePath, text, { width: 360, margin: 1 });
-  return `/qrs/${fileName}`; // ruta pública
+  // ruta pública servida por express.static('/public')
+  return `/qrs/${fileName}`;
 }

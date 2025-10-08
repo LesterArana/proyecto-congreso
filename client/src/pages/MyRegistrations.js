@@ -1,21 +1,50 @@
+// client/src/pages/MyRegistrations.js
 import { useState } from "react";
 import { api } from "../api";
 
 /**
- * Vista del usuario final:
- * - Solo permite DESCARGAR el diploma si ya existe (no lo genera).
- * - Los datos vienen de /registrations/by-email (incluye: qr, attended, diplomaUrl, activity, etc.)
+ * Comportamiento:
+ * - Busca inscripciones por email en /registrations/by-email
+ * - Para cada inscripción consulta /diplomas/by-registration/:id
+ * - Si hay diploma => muestra botón "Descargar diploma"
+ * - Si no hay => muestra "Aún no disponible"
+ * - Mantiene el botón "Ver QR" si existe
  */
 export default function MyRegistrations() {
   const [email, setEmail] = useState("");
-  const [data, setData] = useState(null);          // { registrations: [...] }
+  const [data, setData] = useState(null);      // { registrations: [...] }
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
+
+  // Helper: consulta diploma por cada inscripción y devuelve arreglo enriquecido
+  const attachDiplomas = async (registrations) => {
+    const results = await Promise.all(
+      registrations.map(async (r) => {
+        try {
+          const dres = await api.get(`/diplomas/by-registration/${r.id}`);
+          // backend: { diploma, downloadUrl }
+          return {
+            ...r,
+            diplomaUrl: dres?.data?.downloadUrl || null,
+            diploma: dres?.data?.diploma || null,
+          };
+        } catch (err) {
+          // 404 => no hay diploma; otros errores: lo ignoramos en UI
+          if (err?.response?.status === 404) {
+            return { ...r, diplomaUrl: null, diploma: null };
+          }
+          return { ...r, diplomaUrl: null, diploma: null };
+        }
+      })
+    );
+    return results;
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setMsg(null);
     setData(null);
+
     if (!email.trim()) {
       setMsg({ ok: false, text: "Ingresa tu correo" });
       return;
@@ -32,7 +61,8 @@ export default function MyRegistrations() {
         return;
       }
 
-      setData({ registrations: regs });
+      const regsWithDiplomas = await attachDiplomas(regs);
+      setData({ registrations: regsWithDiplomas });
     } catch (err) {
       setMsg({ ok: false, text: err?.response?.data?.message || "Error consultando inscripciones." });
     } finally {
@@ -75,11 +105,14 @@ export default function MyRegistrations() {
         </div>
       )}
 
+      {loading && <p style={{ color: "#6b7280" }}>Cargando…</p>}
+
       {data?.registrations?.length > 0 && (
         <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
           {data.registrations.map((r) => (
             <div key={r.id} style={{ border: "1px solid #eee", borderRadius: 10, padding: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                {/* Izquierda: detalles */}
                 <div>
                   <div style={{ fontWeight: 600 }}>
                     {r.activity.kind}: {r.activity.title}
@@ -90,12 +123,10 @@ export default function MyRegistrations() {
                   <div style={{ fontSize: 12, marginTop: 4 }}>
                     Estado: <b>{r.status}</b> — Reg. #{r.id}
                   </div>
-                  <div style={{ fontSize: 12, marginTop: 4, color: r.attended ? "#065f46" : "#6b7280" }}>
-                    Asistencia: <b>{r.attended ? `Sí${r.attendedAt ? ` — ${new Date(r.attendedAt).toLocaleString()}` : ""}` : "No"}</b>
-                  </div>
                 </div>
 
-                <div style={{ textAlign: "right", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                {/* Derecha: acciones */}
+                <div style={{ textAlign: "right", display: "flex", gap: 8, alignItems: "center" }}>
                   {/* QR */}
                   {r.qr ? (
                     <a
@@ -117,7 +148,7 @@ export default function MyRegistrations() {
                     <span style={{ fontSize: 12, color: "#6b7280" }}>Sin QR</span>
                   )}
 
-                  {/* Diploma: SOLO DESCARGA (no generar aquí) */}
+                  {/* Diploma (solo descarga si existe) */}
                   {r.diplomaUrl ? (
                     <a
                       href={r.diplomaUrl}
@@ -135,10 +166,19 @@ export default function MyRegistrations() {
                       Descargar diploma
                     </a>
                   ) : (
-                    <span style={{ fontSize: 12, color: "#6b7280" }}>Sin diploma aún</span>
+                    <span style={{ fontSize: 12, color: "#6b7280", whiteSpace: "nowrap" }}>
+                      Diploma: aún no disponible
+                    </span>
                   )}
                 </div>
               </div>
+
+              {/* (Opcional) información extra del diploma si quieres mostrarla */}
+              {/* {r.diploma && (
+                <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
+                  Diploma generado el: {new Date(r.diploma.createdAt).toLocaleString()}
+                </div>
+              )} */}
             </div>
           ))}
         </div>

@@ -54,8 +54,10 @@ model user {
   email        String         @unique(map: "User_email_key")
   type         user_type
   school       String?
+  phone        String?
   createdAt    DateTime       @default(now())
   registration registration[]
+
 }
 
 model winner {

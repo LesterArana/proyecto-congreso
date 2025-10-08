@@ -1,10 +1,20 @@
-// server/src/controllers/registrations.controller.js
+/// server/src/controllers/registrations.controller.js (top-level)
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+
 import { generateQrPng } from '../utils/qr.js';
 import { sendMail } from '../utils/mailer.js';
 
 const prisma = new PrismaClient();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// dominio institucional (si ya lo tienes declarado, reutilízalo)
+const INSTITUTE_DOMAIN = (process.env.INSTITUTION_DOMAIN || 'miumg.edu.gt').toLowerCase();
+const isInternalEmail = (email) => email.toLowerCase().endsWith(`@${INSTITUTE_DOMAIN}`);
+
+
 
 /* =========================
  *  Helper: normaliza rutas guardadas a URL pública servida desde /public
@@ -24,19 +34,25 @@ const externalUserSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   school: z.string().min(2),
+  phone: z.string().min(7, "Teléfono inválido"),   
 });
+
 
 export const createExternalUser = async (req, res, next) => {
   try {
     const data = externalUserSchema.parse(req.body);
+
+    const type = isInternalEmail(data.email) ? 'INTERNAL' : 'EXTERNAL';
+
     const user = await prisma.user.create({
-      data: { name: data.name, email: data.email, type: 'EXTERNAL', school: data.school },
+      data: { name: data.name, email: data.email, type, school: data.school, phone: data.phone },
     });
     res.status(201).json(user);
   } catch (err) {
     next(err);
   }
 };
+
 
 /* =========================
  *  Actividades
@@ -103,39 +119,51 @@ export const activitiesSummary = async (req, res, next) => {
  * ========================= */
 export const createRegistration = async (req, res, next) => {
   try {
-    // datos esperados: name, email, school?, activityId
+    // datos esperados: name, email, school?, phone, activityId
     const schema = z.object({
       name: z.string().min(2),
       email: z.string().email(),
       school: z.string().optional(),
+      phone: z.string().min(7, 'Teléfono inválido'),
       activityId: z.number().int().positive(),
     });
     const data = schema.parse(req.body);
 
-    // 1) asegurar usuario (si no existe, lo crea como EXTERNAL)
+    const type = isInternalEmail(data.email) ? 'INTERNAL' : 'EXTERNAL';
+
+    // 1) asegurar usuario (crear/actualizar)
     let user = await prisma.user.findUnique({ where: { email: data.email } });
     if (!user) {
       user = await prisma.user.create({
         data: {
           name: data.name,
           email: data.email,
-          type: 'EXTERNAL',
+          type,
           school: data.school || null,
+          phone: data.phone,
         },
       });
+    } else {
+      const updates = {};
+      if (!user.phone && data.phone) updates.phone = data.phone;
+      if (!user.school && data.school) updates.school = data.school;
+      if (type === 'INTERNAL' && user.type !== 'INTERNAL') updates.type = 'INTERNAL';
+      if (Object.keys(updates).length > 0) {
+        user = await prisma.user.update({ where: { id: user.id }, data: updates });
+      }
     }
 
     // 2) validar actividad
     const activity = await prisma.activity.findUnique({ where: { id: data.activityId } });
     if (!activity) return res.status(404).json({ message: 'Actividad no encontrada' });
 
-    // 3) evitar duplicados (mismo user + misma activity)
+    // 3) evitar duplicados
     const exists = await prisma.registration.findFirst({
       where: { userId: user.id, activityId: data.activityId },
     });
     if (exists) return res.status(409).json({ message: 'Ya estás inscrito en esta actividad' });
 
-    // 4) validar CUPOS
+    // 4) validar cupo
     const inscritos = await prisma.registration.count({ where: { activityId: data.activityId } });
     if (inscritos >= activity.capacity) {
       return res.status(409).json({ message: 'Cupo lleno para esta actividad' });
@@ -147,7 +175,7 @@ export const createRegistration = async (req, res, next) => {
     });
 
     // =========================
-    // 6) Generar QR + enviar correo (sin romper si falla)
+    // 6) Generar QR + enviar correo (robusto)
     // =========================
     let qrPublicPath = null;
     let emailPreview = null;
@@ -163,15 +191,17 @@ export const createRegistration = async (req, res, next) => {
       });
 
       const fileName = `reg-${reg.id}.png`;
-      qrPublicPath = await generateQrPng(payload, fileName); // p.ej. /qrs/reg-12.png
 
-      // guardar ruta del QR en DB (ruta relativa servida desde /public)
+      // Genera PNG y devuelve ruta pública "/qrs/reg-#.png"
+      qrPublicPath = await generateQrPng(payload, fileName);
+
+      // Guardar ruta QR en DB
       await prisma.registration.update({
         where: { id: reg.id },
         data: { qrCodePath: qrPublicPath },
       });
 
-      // correo
+      // Correo (usar ruta ABSOLUTA para el adjunto en Windows)
       const when = new Date(activity.date).toLocaleString();
       const html = `
         <h2>Inscripción confirmada</h2>
@@ -185,36 +215,37 @@ export const createRegistration = async (req, res, next) => {
         <small>Congreso Tech</small>
       `;
 
+      const qrAbsPath = path.resolve(__dirname, '..', '..', 'public', 'qrs', fileName);
+
       const sent = await sendMail({
         to: user.email,
         subject: `Inscripción — ${activity.title}`,
         html,
-        attachments: [
-          { filename: fileName, path: `public/qrs/${fileName}`, contentType: 'image/png' },
-        ],
+        attachments: [{ filename: fileName, path: qrAbsPath, contentType: 'image/png' }],
       });
 
       emailPreview = sent.preview || null;
-      emailMode = sent.mode || null;     // "smtp" | "ethereal" | "stream" | "error"
-      emailError = sent.error || null;   // null si OK; texto si hubo problema
+      emailMode = sent.mode || null;   // "smtp" | "ethereal" | "stream" | "error"
+      emailError = sent.error || null; // null si OK
     } catch (auxErr) {
       console.error('QR/Email error:', auxErr?.message || auxErr);
       emailError = auxErr?.message || String(auxErr);
     }
 
-    // Respuesta (aunque falle mail/qr, la inscripción ya existe)
+    // 7) respuesta
     return res.status(201).json({
       message: 'Inscripción creada',
       registrationId: reg.id,
-      qr: qrPublicPath,       // ej: /qrs/reg-12.png
-      emailPreview,           // URL si modo ethereal
-      emailMode,              // info del modo de envío
-      emailError,             // null si todo bien
+      qr: qrPublicPath,
+      emailPreview,
+      emailMode,
+      emailError,
     });
   } catch (err) {
     next(err);
   }
 };
+
 
 
 // --- CHECK-IN (robusto) ---
@@ -404,7 +435,7 @@ export const listRegistrationsByEmail = async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.json({ email, registrations: [] });
 
-    // Inscripciones de ese usuario (incluye actividad y asistencia)
+    // Inscripciones (incluye actividad y asistencia)
     const regs = await prisma.registration.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
@@ -421,6 +452,9 @@ export const listRegistrationsByEmail = async (req, res, next) => {
     });
     const diplomaByActivity = new Map(diplomas.map(d => [d.activityId, d.pdfPath]));
 
+    // Helper null-safe
+    const safePublicUrl = (relPath) => (relPath ? toPublicUrl(relPath) : null);
+
     // Respuesta enriquecida
     const data = regs.map(r => ({
       id: r.id,
@@ -428,8 +462,8 @@ export const listRegistrationsByEmail = async (req, res, next) => {
       createdAt: r.createdAt,
       attended: !!r.attendance,
       attendedAt: r.attendance?.checkinAt || null,
-      qr: toPublicUrl(r.qrCodePath) || null,
-      diplomaUrl: toPublicUrl(diplomaByActivity.get(r.activityId)) || null,
+      qr: safePublicUrl(r.qrCodePath),                         // ⬅️ null-safe
+      diplomaUrl: safePublicUrl(diplomaByActivity.get(r.activityId)), // ⬅️ null-safe
       activity: {
         id: r.activity.id,
         title: r.activity.title,
@@ -439,7 +473,9 @@ export const listRegistrationsByEmail = async (req, res, next) => {
     }));
 
     res.json({ email, registrations: data });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const getActivityById = async (req, res, next) => {

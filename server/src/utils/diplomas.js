@@ -1,91 +1,116 @@
 // server/src/utils/diplomas.js
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
-import PDFDocument from 'pdfkit';
-import QRCode from 'qrcode';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
-/** Crea la carpeta si no existe */
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+// Convierte una ruta relativa del /public a URL pública
+export function toPublicUrl(rel) {
+  if (!rel) return null;
+  const norm = String(rel).replace(/\\/g, '/');
+  return norm.startsWith('/') ? norm : `/${norm}`;
+}
+
+// Asegura carpeta y escribe archivo
+export async function writeFileEnsuringDir(absPath, buffer) {
+  await fs.mkdir(path.dirname(absPath), { recursive: true });
+  await fs.writeFile(absPath, buffer);
 }
 
 /**
- * Genera un PDF de diploma y devuelve la RUTA ABSOLUTA del archivo creado.
- * Espera un objeto `registration` que incluya: { id, user{ name|email }, activity{ title }, userId, activityId }
+ * generateDiplomaPDF(input)
+ * Acepta dos formatos:
+ *  A) { user: {name,email}, activity: {title,date} }
+ *  B) { userName, userEmail, activityTitle, activityDate }
+ * Devuelve Buffer (PDF real).
  */
-export async function generateDiplomaPDF({ registration, outDir }) {
-  const targetDir = outDir || path.join(process.cwd(), 'server', 'public', 'diplomas');
-  ensureDir(targetDir);
-
-  const fileName = `${registration.id}-${Date.now()}.pdf`;
-  const outPath = path.join(targetDir, fileName);
-
-  const participantName =
-    registration?.user?.name ||
-    registration?.user?.email ||
+export async function generateDiplomaPDF(input) {
+  const userName =
+    input?.userName ??
+    input?.user?.name ??
     'Participante';
+  const userEmail =
+    input?.userEmail ??
+    input?.user?.email ??
+    '';
+  const activityTitle =
+    input?.activityTitle ??
+    input?.activity?.title ??
+    'Actividad';
+  const activityDate =
+    input?.activityDate ??
+    input?.activity?.date ??
+    new Date();
 
-  const activityName = registration?.activity?.title || `Actividad ${registration?.activityId ?? ''}`;
-  const dateStr = new Date().toLocaleDateString();
+  const when =
+    activityDate instanceof Date
+      ? activityDate
+      : new Date(activityDate);
 
-  // QR con datos básicos del registro
-  const payload = {
-    registrationId: registration.id,
-    userId: registration.userId,
-    activityId: registration.activityId,
-    email: registration?.user?.email || '',
-  };
-  const dataURL = await QRCode.toDataURL(JSON.stringify(payload));
-  const qrBase64 = dataURL.split(',')[1];
-  const qrBuffer = Buffer.from(qrBase64, 'base64');
+  // Crea un documento PDF
+  const pdfDoc = await PDFDocument.create();
+  // Tamaño A4: 595 x 842 aprox.
+  const page = pdfDoc.addPage([595.28, 841.89]);
+  const { width, height } = page.getSize();
 
-  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
-  const stream = fs.createWriteStream(outPath);
-  doc.pipe(stream);
+  // Fuentes
+  const fontTitle = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontText = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  // Marco
-  doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40).stroke();
+  // Colores
+  const primary = rgb(0.145, 0.388, 0.921);   // #2563eb aprox
+  const dark = rgb(0.2, 0.2, 0.2);
 
-  // Encabezado
-  doc.fontSize(20).text('Congreso de Tecnología', { align: 'center' }).moveDown(0.5);
-  doc.fontSize(26).text('DIPLOMA DE PARTICIPACIÓN', { align: 'center' }).moveDown(1.2);
-
-  // Cuerpo
-  doc
-    .fontSize(14).text('Se otorga el presente diploma a:', { align: 'center' }).moveDown(0.3)
-    .fontSize(22).text(participantName, { align: 'center' }).moveDown(0.6)
-    .fontSize(14).text(`Por su participación en la actividad "${activityName}".`, { align: 'center' }).moveDown(0.6)
-    .text(`Fecha: ${dateStr}`, { align: 'center' }).moveDown(1.2);
-
-  // QR centrado
-  const qrSize = 110;
-  doc.image(qrBuffer, doc.page.width / 2 - qrSize / 2, doc.y, { width: qrSize }).moveDown(1.2);
-
-  // Firmas
-  const y = doc.y + 100;
-  doc.moveTo(80, y).lineTo(260, y).stroke();
-  doc.fontSize(10).text('Coordinación Académica', 80, y + 5, { width: 180, align: 'center' });
-
-  doc.moveTo(doc.page.width - 260, y).lineTo(doc.page.width - 80, y).stroke();
-  doc.fontSize(10).text('Dirección de Carrera', doc.page.width - 260, y + 5, { width: 180, align: 'center' });
-
-  doc.end();
-
-  await new Promise((resolve, reject) => {
-    stream.on('finish', resolve);
-    stream.on('error', reject);
+  // Marco decorativo
+  const margin = 32;
+  page.drawRectangle({
+    x: margin,
+    y: margin,
+    width: width - margin * 2,
+    height: height - margin * 2,
+    borderWidth: 2,
+    color: rgb(1, 1, 1),
+    borderColor: primary,
   });
 
-  return outPath;
-}
+  // Helper para centrar texto
+  function drawCentered(text, y, size, font, color = dark) {
+    const textWidth = font.widthOfTextAtSize(text, size);
+    const x = (width - textWidth) / 2;
+    page.drawText(text, { x, y, size, font, color });
+  }
 
-/**
- * Convierte una RUTA ABSOLUTA dentro de /public a una URL relativa servible por Express:
- * p.ej.  C:\...\server\public\diplomas\abc.pdf  =>  /diplomas/abc.pdf
- */
-export function toPublicUrl(absPath) {
-  const norm = absPath.replace(/\\/g, '/');
-  const idx = norm.lastIndexOf('/public/');
-  if (idx === -1) return null;
-  return norm.substring(idx + '/public'.length); // -> /diplomas/archivo.pdf
+  // Contenido
+  let cursorY = height - 140;
+
+  drawCentered('Diploma de participación', cursorY, 28, fontTitle, primary);
+  cursorY -= 40;
+
+  drawCentered('Otorgado a:', cursorY, 14, fontText);
+  cursorY -= 24;
+
+  drawCentered(userName, cursorY, 22, fontTitle);
+  cursorY -= 22;
+
+  if (userEmail) {
+    cursorY -= 6;
+    drawCentered(`(${userEmail})`, cursorY, 12, fontText, rgb(0.35, 0.35, 0.35));
+    cursorY -= 12;
+  }
+
+  cursorY -= 18;
+  drawCentered('Por su participación en:', cursorY, 14, fontText);
+  cursorY -= 24;
+
+  drawCentered(activityTitle, cursorY, 18, fontTitle);
+  cursorY -= 28;
+
+  const dateStr = when.toLocaleString();
+  drawCentered(`Fecha: ${dateStr}`, cursorY, 12, fontText);
+  cursorY -= 60;
+
+  drawCentered('— Congreso de Tecnología —', cursorY, 12, fontText, rgb(0.35, 0.35, 0.35));
+
+  // Exporta a Buffer
+  const bytes = await pdfDoc.save(); // Uint8Array
+  return Buffer.from(bytes);
 }

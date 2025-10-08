@@ -61,21 +61,28 @@ async function buildTransport() {
 
 export async function sendMail({ to, subject, html, attachments = [] }) {
   try {
-    const ctx = await buildTransport();
-    const info = await ctx.transporter.sendMail({ from: ctx.from, to, subject, html, attachments });
+    const transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      port: process.env.MAIL_PORT,
+      secure: false, // true para puerto 465, false para 587
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
 
-    let preview = null;
-    if (ctx.mode === 'ethereal') {
-      preview = nodemailer.getTestMessageUrl(info) || null;
-      if (preview) console.log('📫 Vista previa (Ethereal):', preview);
-    }
-    if (ctx.mode === 'stream') {
-      console.log('📄 Correo simulado (stream). Bytes:', info.message?.length || 0);
-    }
+    const info = await transporter.sendMail({
+      from: process.env.MAIL_FROM,
+      to,
+      subject,
+      html,
+      attachments,
+    });
 
-    return { messageId: info.messageId || null, preview, mode: ctx.mode, error: null };
+    console.log("📨 Correo enviado:", info.messageId);
+    return { mode: "smtp", preview: null, error: null };
   } catch (err) {
-    console.error('Mailer error:', err);
-    return { messageId: null, preview: null, mode: 'error', error: err?.message || String(err) };
+    console.error("❌ Error enviando correo:", err.message);
+    return { mode: "error", preview: null, error: err.message };
   }
 }

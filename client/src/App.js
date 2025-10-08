@@ -21,7 +21,7 @@ import Header from "./components/Header";
 import RequireAdmin from "./components/RequireAdmin.jsx";
 
 import AdminWinners from "./pages/AdminWinners";
-
+import Home from "./pages/Home";
 
 // Estilos
 import "./App.css";
@@ -103,6 +103,8 @@ export default function App() {
     </RequireAdmin>
   }
 />
+
+        <Route path="/" element={<Home />} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

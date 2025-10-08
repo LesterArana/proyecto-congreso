@@ -1,19 +1,20 @@
-// server/src/routes/diplomas.routes.js
 import { Router } from 'express';
 import { requireAdmin } from '../middlewares/admin.middleware.js';
 import {
-  generateForRegistration,
-  generateForActivity,
-  getByRegistration,
+  getDiplomaByRegistration,
+  generateDiplomaForRegistration,
+  generateDiplomasForActivity, // ⬅️ ESTE es el nombre correcto
 } from '../controllers/diplomas.controller.js';
 
 const router = Router();
 
-// Solo Admin puede GENERAR
-router.post('/generate/:registrationId', requireAdmin, generateForRegistration);
-router.post('/generate/activity/:activityId', requireAdmin, generateForActivity);
+// Público: consultar si existe diploma para una inscripción
+router.get('/by-registration/:regId', getDiplomaByRegistration);
 
-// Consulta pública (para que el front pueda verificar si existe)
-router.get('/by-registration/:registrationId', getByRegistration);
+// Admin: generar 1 diploma (y enviar por correo)
+router.post('/generate/:regId', requireAdmin, generateDiplomaForRegistration);
+
+// Admin: generar en lote por actividad (y enviar correos)
+router.post('/generate/activity/:activityId', requireAdmin, generateDiplomasForActivity);
 
 export default router;
