@@ -74,10 +74,10 @@ export default function AdminActivities() {
 
     try {
       if (editing) {
-        await api.put(`/activities/${editing.id}`, payload);
+        await api.put(`/admin/activities/${editing.id}`, payload);
         setMsg("Actividad actualizada.");
       } else {
-        await api.post(`/activities`, payload);
+       await api.post(`/admin/activities`, payload);
         setMsg("Actividad creada.");
       }
       resetForm();
@@ -133,13 +133,17 @@ export default function AdminActivities() {
       <form onSubmit={onSubmit} style={{ display: "grid", gap: 8, border: "1px solid #eee", padding: 12, borderRadius: 10 }}>
         <div style={{ display: "grid", gap: 6 }}>
           <label>Tipo</label>
-          <input
-            value={form.kind}
-            onChange={(e) => setForm({ ...form, kind: e.target.value })}
-            placeholder='CONFERENCE / WORKSHOP / COMPETITION'
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd" }}
-            required
-          />
+<select
+  value={form.kind}
+  onChange={(e) => setForm({ ...form, kind: e.target.value })}
+  style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd" }}
+  required
+>
+  <option value="">-- Selecciona --</option>
+  <option value="TALLER">Taller</option>
+  <option value="COMPETENCIA">Competencia</option>
+</select>
+
         </div>
         <div style={{ display: "grid", gap: 6 }}>
           <label>Título</label>
