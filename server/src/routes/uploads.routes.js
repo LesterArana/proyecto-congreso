@@ -1,9 +1,10 @@
-// server/src/routes/upload.routes.js
+// server/src/routes/uploads.routes.js
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { requireAuthAdmin } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -31,13 +32,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-// POST /api/uploads/winner-photo
-router.post("/winner-photo", upload.single("photo"), (req, res) => {
-  console.log("[UPLOAD] body=", req.body);
-  console.log("[UPLOAD] file=", req.file);
+// ✅ Protegido por JWT ADMIN
+// POST /api/uploads/winner-photo  (form-data: photo=<file>)
+router.post("/winner-photo", requireAuthAdmin, upload.single("photo"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No se recibió archivo 'photo'." });
   }

@@ -1,6 +1,6 @@
 // server/src/routes/index.js
 import { Router } from "express";
-import { requireAdmin } from "../middlewares/admin.middleware.js";
+import { requireAuthAdmin } from "../middlewares/auth.middleware.js";
 
 // ===== Controlador PÚBLICO
 import {
@@ -48,27 +48,30 @@ router.post("/checkin", checkin);
 router.get("/registrations/by-email", listRegistrationsByEmail);
 router.get("/activities/:id/attendances", listAttendancesByActivity);
 
-// CSV y registros por actividad (ADMIN)
-router.get("/activities/:id/registrations.csv", requireAdmin, exportRegistrationsCsv);
-router.get("/activities/:id/registrations", requireAdmin, listRegistrationsByActivity);
+/* =========================
+ * RUTAS ADMIN (CSV y registros por actividad)
+ * ========================= */
+router.get("/activities/:id/registrations.csv", requireAuthAdmin, exportRegistrationsCsv);
+router.get("/activities/:id/registrations", requireAuthAdmin, listRegistrationsByActivity);
 
 /* =========================
  * RUTAS ADMIN (NAMESPACE /admin/activities)
  * ========================= */
-router.get("/admin/activities", requireAdmin, listActivitiesAdmin);
-router.get("/admin/activities/:id", requireAdmin, getActivityAdmin);
-router.post("/admin/activities", requireAdmin, createActivity);
-router.put("/admin/activities/:id", requireAdmin, updateActivity);
-router.delete("/admin/activities/:id", requireAdmin, deleteActivity);
+router.get("/admin/activities", requireAuthAdmin, listActivitiesAdmin);
+router.get("/admin/activities/:id", requireAuthAdmin, getActivityAdmin);
+router.post("/admin/activities", requireAuthAdmin, createActivity);
+router.put("/admin/activities/:id", requireAuthAdmin, updateActivity);
+router.delete("/admin/activities/:id", requireAuthAdmin, deleteActivity);
 
 /* =========================
  * MÓDULOS
  * ========================= */
-router.use("/diplomas", diplomasRoutes);
-router.use("/winners", winnersRoutes);
-router.use("/reports", reportsRoutes);
-router.use("/site", siteRoutes);
+router.use("/diplomas", diplomasRoutes); // ya protegidas adentro
+router.use("/winners", winnersRoutes);   // ya protegidas adentro
+router.use("/reports", reportsRoutes);   // ya protegidas adentro
+router.use("/site", siteRoutes);         // público
 
-router.get("/admin/ping", requireAdmin, (req, res) => res.json({ ok: true }));
+// Ping admin
+router.get("/admin/ping", requireAuthAdmin, (req, res) => res.json({ ok: true }));
 
 export default router;

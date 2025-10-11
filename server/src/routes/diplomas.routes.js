@@ -1,9 +1,10 @@
+// server/src/routes/diplomas.routes.js
 import { Router } from 'express';
-import { requireAdmin } from '../middlewares/admin.middleware.js';
+import { requireAuthAdmin } from '../middlewares/auth.middleware.js';
 import {
   getDiplomaByRegistration,
   generateDiplomaForRegistration,
-  generateDiplomasForActivity, // ⬅️ ESTE es el nombre correcto
+  generateDiplomasForActivity, // ⬅️ este nombre está correcto
 } from '../controllers/diplomas.controller.js';
 
 const router = Router();
@@ -12,9 +13,9 @@ const router = Router();
 router.get('/by-registration/:regId', getDiplomaByRegistration);
 
 // Admin: generar 1 diploma (y enviar por correo)
-router.post('/generate/:regId', requireAdmin, generateDiplomaForRegistration);
+router.post('/generate/:regId', requireAuthAdmin, generateDiplomaForRegistration);
 
 // Admin: generar en lote por actividad (y enviar correos)
-router.post('/generate/activity/:activityId', requireAdmin, generateDiplomasForActivity);
+router.post('/generate/activity/:activityId', requireAuthAdmin, generateDiplomasForActivity);
 
 export default router;

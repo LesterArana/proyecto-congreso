@@ -1,8 +1,10 @@
 // prisma/seed.js
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+
 const prisma = new PrismaClient();
 
-async function main() {
+async function seedActivities() {
   const activities = [
     {
       kind: 'TALLER',
@@ -34,7 +36,6 @@ async function main() {
     },
   ];
 
-  // Evita duplicados buscando por (title + date)
   for (const a of activities) {
     const exists = await prisma.activity.findFirst({
       where: { title: a.title, date: a.date },
@@ -46,6 +47,33 @@ async function main() {
       console.log(`↩️  Ya existía: ${a.kind} - ${a.title}`);
     }
   }
+}
+
+async function seedAdmin() {
+  const email = (process.env.SEED_ADMIN_EMAIL || 'admin@congreso.com').toLowerCase();
+  const password = process.env.SEED_ADMIN_PASSWORD || 'Admin123';
+
+  const existing = await prisma.adminUser.findUnique({ where: { email } });
+  if (existing) {
+    console.log(`↩️  Admin ya existe: ${email}`);
+    return;
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+  await prisma.adminUser.create({
+    data: {
+      email,
+      password: hash,
+      role: 'ADMIN',
+    },
+  });
+
+  console.log(`👤 Admin creado: ${email} / ${password}`);
+}
+
+async function main() {
+  await seedActivities();
+  await seedAdmin();
 }
 
 main()

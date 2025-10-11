@@ -66,12 +66,11 @@ export default function Header() {
 
           {isAdmin && (
             <button
-              onClick={logout}
-              className="ml-1 px-3 py-2 rounded-xl border border-white/30 text-white/90 hover:bg-white/10"
-              title="Cerrar sesión de administrador"
-            >
-              Salir
-            </button>
+  onClick={() => { localStorage.removeItem("adminToken"); localStorage.removeItem("adminUser"); window.location.href = "/"; }}
+  style={{ padding:"6px 10px", borderRadius:8, border:"1px solid #ddd", background:"#fff" }}
+>
+  Salir
+</button>
           )}
         </nav>
       </div>

@@ -1,6 +1,6 @@
 // server/src/routes/reports.routes.js
 import { Router } from 'express';
-import { requireAdmin } from '../middlewares/admin.middleware.js';
+import { requireAuthAdmin } from '../middlewares/auth.middleware.js';
 import {
   attendanceSummary,
   attendanceByActivity,
@@ -9,9 +9,9 @@ import {
 
 const router = Router();
 
-// Todo el módulo de reportes protegido para admin
-router.get('/attendance', requireAdmin, attendanceSummary);
-router.get('/attendance/activities/:id', requireAdmin, attendanceByActivity);
-router.get('/attendance/activities/:id.csv', requireAdmin, attendanceByActivityCsv);
+// ✅ Todo el módulo de reportes protegido para admin autenticado (JWT)
+router.get('/attendance', requireAuthAdmin, attendanceSummary);
+router.get('/attendance/activities/:id', requireAuthAdmin, attendanceByActivity);
+router.get('/attendance/activities/:id.csv', requireAuthAdmin, attendanceByActivityCsv);
 
 export default router;

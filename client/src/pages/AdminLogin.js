@@ -1,73 +1,53 @@
-// client/src/pages/AdminLogin.js
+// adminlogin
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 
 export default function AdminLogin() {
-  const [key, setKey] = useState("");
-  const [msg, setMsg] = useState(null);
-  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [msg, setMsg] = useState("");
 
-  const submit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setMsg(null);
-    const k = key.trim();
-    if (!k) return setMsg("Ingresa la clave de administración");
-
+    setMsg("");
     try {
-      const res = await api.get("/admin/ping", {
-        headers: { "x-admin-key": k },
-      });
-      if (res.data?.ok) {
-        localStorage.setItem("adminKey", k);
-        navigate("/admin", { replace: true });
-      } else {
-        setMsg("Clave inválida");
-      }
+      const { data } = await api.post("/auth/login", { email, password });
+      localStorage.setItem("adminToken", data.token);
+      window.location.href = "/admin";
     } catch (err) {
-      setMsg("Clave inválida");
+      const m = err?.response?.data?.error || "Error iniciando sesión.";
+      setMsg(m);
     }
   };
 
   return (
-    <div className="min-h-screen bg-umgBlue flex items-center justify-center">
-      <div className="bg-white text-slate-800 rounded-2xl shadow-xl border border-white/20 p-8 w-[90%] max-w-md">
-        <h2 className="text-2xl font-bold text-center text-umgBlue mb-2">
-          Acceso administrador
-        </h2>
-        <p className="text-center text-slate-500 text-sm mb-6">
-          Ingrese la clave de administración para acceder al panel.
-        </p>
+    <div style={{ minHeight: "100vh", background: "#0b5aaa", display: "grid", placeItems: "center" }}>
+      <form onSubmit={handleSubmit}
+        style={{
+          width: 340, background: "#083a75", color: "#fff",
+          padding: 20, borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.25)",
+          display: "grid", gap: 10
+        }}>
+        <h3 style={{ margin: 0, textAlign: "center" }}>Acceso administrador</h3>
 
-        <form onSubmit={submit} className="grid gap-4">
-          <input
-            type="password"
-            placeholder="Clave de admin"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            className="rounded-xl border border-slate-300 px-4 py-2 focus:ring-umgBlue focus:border-umgBlue outline-none"
-            autoFocus
-          />
-          <button
-            type="submit"
-            className="rounded-xl bg-umgBlue text-white font-semibold py-2 hover:brightness-105 transition"
-          >
-            Entrar
-          </button>
-        </form>
+        <input
+          type="email" placeholder="Correo"
+          value={email} onChange={(e) => setEmail(e.target.value)}
+          style={{ padding: 10, borderRadius: 8, border: "1px solid #9db7e0", background: "#fff", color: "#111" }}
+        />
+        <input
+          type="password" placeholder="Contraseña"
+          value={password} onChange={(e) => setPassword(e.target.value)}
+          style={{ padding: 10, borderRadius: 8, border: "1px solid #9db7e0", background: "#fff", color: "#111" }}
+        />
 
-        {msg && (
-          <p
-            className={`mt-4 text-center font-medium ${
-              msg.includes("inválida")
-                ? "text-rose-600"
-                : "text-emerald-600"
-            }`}
-          >
-            {msg}
-          </p>
-        )}
-      </div>
+        <button type="submit"
+          style={{ background: "#2563eb", color: "#fff", border: "none", padding: 10, borderRadius: 8, cursor: "pointer" }}>
+          Entrar
+        </button>
+
+        {msg && <div style={{ color: "#ffb4b4", fontSize: 13, textAlign: "center" }}>{msg}</div>}
+      </form>
     </div>
   );
 }

@@ -1,13 +1,28 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "http://localhost:4000/api",
+  baseURL: process.env.REACT_APP_API_BASE || "http://localhost:4000/api",
 });
 
-// ==> Interceptor para adjuntar la clave admin si existe
-
+// Adjunta token si existe
 api.interceptors.request.use((config) => {
-  const k = localStorage.getItem("adminKey");
-  if (k) config.headers["x-admin-key"] = k; // 👈 manda la clave en TODAS las llamadas
+  const token = localStorage.getItem("adminToken");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// Si 401 → redirigir a login admin
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const st = err?.response?.status;
+    if (st === 401) {
+      // opcional: limpiar token
+      localStorage.removeItem("adminToken");
+      if (window.location.pathname !== "/admin-login") {
+        window.location.href = "/admin-login";
+      }
+    }
+    return Promise.reject(err);
+  }
+);
