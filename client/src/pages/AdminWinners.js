@@ -1,3 +1,4 @@
+// client/src/pages/AdminWinners.js
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 
@@ -19,26 +20,35 @@ export default function AdminWinners() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
 
-  // ======= Helpers de estilo mínimos
-  const input = { padding: 10, border: "1px solid #ddd", borderRadius: 10, width: "100%" };
-  const btn = (bg = "#2563eb") => ({
-    background: bg,
-    color: "#fff",
-    padding: "10px 14px",
-    border: "none",
-    borderRadius: 10,
-    cursor: "pointer",
-  });
-  const chip = (active) => ({
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: active ? "2px solid #2563eb" : "1px solid #ddd",
-    background: active ? "#eff6ff" : "#fff",
-    cursor: "pointer",
-    fontWeight: 600,
-    minWidth: 60,
-    textAlign: "center",
-  });
+  // subida de imagen
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function uploadPhoto() {
+    if (!file) return;
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append("photo", file);
+      const { data } = await api.post("/uploads/winner-photo", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (data?.url) {
+        setForm((f) => ({ ...f, photoUrl: data.url }));
+        setMsg({ ok: true, text: "📸 Foto subida y vinculada." });
+        setFile(null);
+      } else {
+        setMsg({ ok: false, text: "No se recibió URL de la imagen." });
+      }
+    } catch (e) {
+      setMsg({
+        ok: false,
+        text: e?.response?.data?.error || "Error subiendo imagen.",
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
 
   // ======= Cargar actividades y winners al entrar
   useEffect(() => {
@@ -46,13 +56,16 @@ export default function AdminWinners() {
       try {
         setLoading(true);
         const [actsRes, winnersRes] = await Promise.all([
-          api.get("/activities"),          // lista pública
-          api.get("/winners"),             // lista pública
+          api.get("/activities"),
+          api.get("/winners"),
         ]);
         setActivities(actsRes.data || []);
         setItems(winnersRes.data?.items || []);
       } catch (e) {
-        setMsg({ ok: false, text: e?.response?.data?.error || "Error inicial cargando datos." });
+        setMsg({
+          ok: false,
+          text: e?.response?.data?.error || "Error inicial cargando datos.",
+        });
       } finally {
         setLoading(false);
       }
@@ -61,40 +74,52 @@ export default function AdminWinners() {
 
   // ======= Cargar inscripciones cuando cambie actividad
   useEffect(() => {
-    if (!form.activityId) { setRegs([]); return; }
+    if (!form.activityId) {
+      setRegs([]);
+      return;
+    }
     (async () => {
       try {
         setLoading(true);
         setMsg(null);
-        const res = await api.get(`/activities/${form.activityId}/registrations`); // requiere admin (x-admin-key via interceptor)
-        // normalizamos datos que usaremos en el selector de usuarios
-        const rows = (res.data || []).map(r => ({
-          regId: r.id,
-          userId: r.user?.id,
-          name: r.user?.name,
-          email: r.user?.email,
-          attended: r.status === "CHECKED_IN",
-          status: r.status,
-        })).filter(r => !!r.userId);
+        const res = await api.get(`/activities/${form.activityId}/registrations`);
+        const rows =
+          (res.data || [])
+            .map((r) => ({
+              regId: r.id,
+              userId: r.user?.id,
+              name: r.user?.name,
+              email: r.user?.email,
+              attended: r.status === "CHECKED_IN",
+              status: r.status,
+            }))
+            .filter((r) => !!r.userId) || [];
         setRegs(rows);
-        // si venimos de editar y el user no pertenece a esta actividad, reset
-        if (form.userId && !rows.some(x => String(x.userId) === String(form.userId))) {
-          setForm(f => ({ ...f, userId: "" }));
+        if (
+          form.userId &&
+          !rows.some((x) => String(x.userId) === String(form.userId))
+        ) {
+          setForm((f) => ({ ...f, userId: "" }));
         }
       } catch (e) {
-        setMsg({ ok: false, text: e?.response?.data?.error || "No se pudieron cargar inscripciones de la actividad." });
+        setMsg({
+          ok: false,
+          text:
+            e?.response?.data?.error ||
+            "No se pudieron cargar inscripciones de la actividad.",
+        });
         setRegs([]);
       } finally {
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.activityId]);
 
   // ======= Lista de usuarios para el selector, con filtro "solo asistentes"
   const userOptions = useMemo(() => {
     let list = regs;
-    if (form.onlyAttended) list = list.filter(r => r.attended);
-    // evitar duplicados por userId si se inscribió dos veces (raro)
+    if (form.onlyAttended) list = list.filter((r) => r.attended);
     const seen = new Set();
     const unique = [];
     for (const r of list) {
@@ -109,11 +134,16 @@ export default function AdminWinners() {
   async function loadWinners() {
     try {
       setLoading(true);
-      const url = form.activityId ? `/winners?activityId=${form.activityId}` : "/winners";
+      const url = form.activityId
+        ? `/winners?activityId=${form.activityId}`
+        : "/winners";
       const res = await api.get(url);
       setItems(res?.data?.items || []);
     } catch (e) {
-      setMsg({ ok: false, text: e?.response?.data?.error || "Error cargando ganadores." });
+      setMsg({
+        ok: false,
+        text: e?.response?.data?.error || "Error cargando ganadores.",
+      });
     } finally {
       setLoading(false);
     }
@@ -144,10 +174,13 @@ export default function AdminWinners() {
         setMsg({ ok: true, text: "Ganador creado." });
       }
       setEditingId(null);
-      setForm(f => ({ ...emptyForm, activityId: f.activityId })); // mantenemos actividad seleccionada
+      setForm((f) => ({ ...emptyForm, activityId: f.activityId }));
       await loadWinners();
     } catch (e) {
-      setMsg({ ok: false, text: e?.response?.data?.error || "No se pudo guardar." });
+      setMsg({
+        ok: false,
+        text: e?.response?.data?.error || "No se pudo guardar.",
+      });
     } finally {
       setLoading(false);
     }
@@ -156,7 +189,7 @@ export default function AdminWinners() {
   // ======= Editar/Eliminar
   function edit(w) {
     setEditingId(w.id);
-    setForm(f => ({
+    setForm((f) => ({
       ...f,
       activityId: String(w.activity.id),
       userId: String(w.user.id),
@@ -175,227 +208,333 @@ export default function AdminWinners() {
       setMsg({ ok: true, text: "Ganador eliminado." });
       await loadWinners();
     } catch (e) {
-      setMsg({ ok: false, text: e?.response?.data?.error || "No se pudo eliminar." });
+      setMsg({
+        ok: false,
+        text: e?.response?.data?.error || "No se pudo eliminar.",
+      });
     } finally {
       setLoading(false);
     }
   }
 
-  // ======= UI
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
-      <h2 style={{ marginBottom: 12 }}>Resultados (Admin)</h2>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-6">
+          <h2 className="text-2xl font-bold text-umgBlue mb-2">
+            Resultados (Admin)
+          </h2>
 
-      {/* Mensajes */}
-      {msg && (
-        <div style={{
-          padding: 10, borderRadius: 10,
-          background: msg.ok ? "#dcfce7" : "#fee2e2",
-          color: msg.ok ? "#065f46" : "#991b1b",
-          margin: "8px 0"
-        }}>
-          {msg.text || msg}
-        </div>
-      )}
-
-      {/* Formulario de carga intuitivo */}
-      <form onSubmit={submit} style={{ display: "grid", gap: 12, marginBottom: 16 }}>
-        {/* 1) Selección de actividad */}
-        <div>
-          <label style={{ fontWeight: 600 }}>Actividad</label>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <select
-              value={form.activityId}
-              onChange={(e) => setForm(f => ({ ...f, activityId: e.target.value }))}
-              style={input}
-              required
+          {/* Mensajes */}
+          {msg && (
+            <div
+              className={`rounded-xl px-3 py-2 mb-4 ${
+                msg.ok
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-rose-50 text-rose-700 border border-rose-200"
+              }`}
             >
-              <option value="">— Selecciona actividad —</option>
-              {activities.map(a => (
-                <option key={a.id} value={a.id}>
-                  #{a.id} — {a.title} ({new Date(a.date).toLocaleDateString()})
-                </option>
-              ))}
-            </select>
+              {msg.text || msg}
+            </div>
+          )}
 
-            <button type="button" onClick={loadWinners} style={btn("#6b7280")}>
-              Refrescar lista
-            </button>
-          </div>
-        </div>
+          {/* Formulario */}
+          <form onSubmit={submit} className="grid gap-4 mb-6">
+            {/* 1) Actividad */}
+            <div>
+              <label className="font-semibold">Actividad</label>
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center mt-1">
+                <select
+                  value={form.activityId}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, activityId: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-300 px-3 py-2 w-full sm:w-auto focus:ring-umgBlue focus:border-umgBlue outline-none"
+                  required
+                >
+                  <option value="">— Selecciona actividad —</option>
+                  {activities.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      #{a.id} — {a.title} (
+                      {new Date(a.date).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
 
-        {/* 2) Filtro de asistentes y selección de usuario */}
-        <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={form.onlyAttended}
-                onChange={(e) => setForm(f => ({ ...f, onlyAttended: e.target.checked }))}
-              />
-              Mostrar solo asistentes
-            </label>
-            <small style={{ color: "#6b7280" }}>
-              {regs.length
-                ? `Registros cargados: ${regs.length} — disponibles: ${userOptions.length}`
-                : (form.activityId ? "Cargando/registros…" : "Elige una actividad")}
-            </small>
-          </div>
-
-          <div>
-            <label style={{ fontWeight: 600 }}>Ganador (usuario)</label>
-            <select
-              value={form.userId}
-              onChange={(e) => setForm(f => ({ ...f, userId: e.target.value }))}
-              style={input}
-              disabled={!form.activityId}
-              required
-            >
-              <option value="">— Selecciona usuario —</option>
-              {userOptions.map(u => (
-                <option key={u.userId} value={u.userId}>
-                  {u.name} — {u.email} {u.attended ? "✅ asistió" : "⚠️ no asistió"}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* 3) Selección de lugar con “chips” */}
-        <div>
-          <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>Lugar</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            {[1, 2, 3].map(n => (
-              <div
-                key={n}
-                style={chip(form.place === n)}
-                onClick={() => setForm(f => ({ ...f, place: n }))}
-              >
-                {n}°
-              </div>
-            ))}
-            {/* Permite más lugares si lo necesitas */}
-            <input
-              type="number"
-              value={form.place}
-              min={1}
-              onChange={(e) => setForm(f => ({ ...f, place: Number(e.target.value) }))}
-              style={{ ...input, maxWidth: 100, marginLeft: 8 }}
-            />
-          </div>
-        </div>
-
-        {/* 4) Foto y descripción */}
-        <div>
-          <label style={{ fontWeight: 600 }}>Foto (URL o ruta pública)</label>
-          <input
-            type="text"
-            placeholder="https://…  o  /winners/fotos/alguien.jpg"
-            value={form.photoUrl}
-            onChange={(e) => setForm(f => ({ ...f, photoUrl: e.target.value }))}
-            style={input}
-          />
-        </div>
-
-        <div>
-          <label style={{ fontWeight: 600 }}>Descripción (opcional)</label>
-          <textarea
-            rows={3}
-            placeholder="Motivo, categoría, equipo, etc."
-            value={form.description}
-            onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-            style={input}
-          />
-        </div>
-
-        {/* 5) Vista previa */}
-        {form.userId && (
-          <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>Vista previa</div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <div style={{
-                width: 64, height: 64, borderRadius: 8, background: "#f3f4f6",
-                display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden"
-              }}>
-                {form.photoUrl ? (
-                  <img src={form.photoUrl} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <span style={{ color: "#6b7280" }}>Sin foto</span>
-                )}
-              </div>
-              <div>
-                <div><b>Lugar:</b> {form.place}°</div>
-                <div><b>Actividad:</b> {activities.find(a => String(a.id) === String(form.activityId))?.title || "-"}</div>
-                <div>
-                  <b>Usuario:</b>{" "}
-                  {userOptions.find(u => String(u.userId) === String(form.userId))?.name || "-"}
-                </div>
-                {form.description && <div style={{ color: "#374151" }}>{form.description}</div>}
+                <button
+                  type="button"
+                  onClick={loadWinners}
+                  className="rounded-xl border px-4 py-2 hover:bg-slate-50"
+                >
+                  Refrescar lista
+                </button>
               </div>
             </div>
+
+            {/* 2) Filtro y usuario */}
+            <div className="grid gap-2">
+              <div className="flex items-center gap-3">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.onlyAttended}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, onlyAttended: e.target.checked }))
+                    }
+                    className="rounded border-slate-300"
+                  />
+                  Mostrar solo asistentes
+                </label>
+                <small className="text-slate-500">
+                  {regs.length
+                    ? `Registros cargados: ${regs.length} — disponibles: ${userOptions.length}`
+                    : form.activityId
+                    ? "Cargando registros…"
+                    : "Elige una actividad"}
+                </small>
+              </div>
+
+              <div>
+                <label className="font-semibold">Ganador (usuario)</label>
+                <select
+                  value={form.userId}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, userId: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
+                  disabled={!form.activityId}
+                  required
+                >
+                  <option value="">— Selecciona usuario —</option>
+                  {userOptions.map((u) => (
+                    <option key={u.userId} value={u.userId}>
+                      {u.name} — {u.email} {u.attended ? "✅ asistió" : "⚠️ no asistió"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* 3) Lugar */}
+            <div>
+              <label className="font-semibold block mb-1">Lugar</label>
+              <div className="flex gap-2">
+                {[1, 2, 3].map((n) => {
+                  const active = form.place === n;
+                  return (
+                    <button
+                      type="button"
+                      key={n}
+                      onClick={() => setForm((f) => ({ ...f, place: n }))}
+                      className={`min-w-12 px-4 py-2 rounded-xl font-semibold transition ${
+                        active
+                          ? "border-2 border-umgBlue bg-blue-50"
+                          : "border border-slate-300 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      {n}°
+                    </button>
+                  );
+                })}
+                <input
+                  type="number"
+                  value={form.place}
+                  min={1}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, place: Number(e.target.value) }))
+                  }
+                  className="ml-1 rounded-xl border border-slate-300 px-3 py-2 w-24 focus:ring-umgBlue focus:border-umgBlue outline-none"
+                />
+              </div>
+            </div>
+
+            {/* 4) Foto y descripción */}
+            <div>
+              <label className="font-semibold">Foto (URL o ruta pública)</label>
+              <input
+                type="text"
+                placeholder="https://…  o  /public/winners/archivo.jpg"
+                value={form.photoUrl}
+                onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
+                className="mt-1 rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
+              />
+
+              {/* Subir archivo (en móviles, 'capture' abre la cámara) */}
+              <div className="flex items-center gap-3 mt-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="block"
+                />
+                <button
+                  type="button"
+                  onClick={uploadPhoto}
+                  disabled={!file || uploading}
+                  className={`rounded-xl px-4 py-2 font-semibold text-white ${
+                    !file || uploading
+                      ? "bg-slate-400 cursor-not-allowed"
+                      : "bg-sky-500 hover:brightness-105"
+                  }`}
+                  title="Subir imagen al servidor"
+                >
+                  {uploading ? "Subiendo..." : "Subir foto"}
+                </button>
+                {file && <small className="text-slate-500">{file.name}</small>}
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold">Descripción (opcional)</label>
+              <textarea
+                rows={3}
+                placeholder="Motivo, categoría, equipo, etc."
+                value={form.description}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, description: e.target.value }))
+                }
+                className="mt-1 rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
+              />
+            </div>
+
+            {/* 5) Vista previa */}
+            {form.userId && (
+              <div className="border border-slate-200 rounded-2xl p-3">
+                <div className="font-semibold mb-2">Vista previa</div>
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-lg bg-slate-100 grid place-items-center overflow-hidden">
+                    {form.photoUrl ? (
+                      <img
+                        src={form.photoUrl}
+                        alt="preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-slate-500 text-xs">Sin foto</span>
+                    )}
+                  </div>
+                  <div className="text-sm">
+                    <div><b>Lugar:</b> {form.place}°</div>
+                    <div>
+                      <b>Actividad:</b>{" "}
+                      {activities.find((a) => String(a.id) === String(form.activityId))?.title || "-"}
+                    </div>
+                    <div>
+                      <b>Usuario:</b>{" "}
+                      {userOptions.find((u) => String(u.userId) === String(form.userId))?.name || "-"}
+                    </div>
+                    {form.description && (
+                      <div className="text-slate-700 mt-1">{form.description}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 6) Acciones */}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className={`rounded-xl px-4 py-2 font-semibold text-white ${
+                  loading ? "bg-slate-400 cursor-not-allowed" : "bg-umgBlue hover:brightness-105"
+                }`}
+              >
+                {editingId ? "Guardar cambios" : "Crear ganador"}
+              </button>
+
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(null);
+                    setForm((f) => ({ ...emptyForm, activityId: f.activityId }));
+                  }}
+                  className="rounded-xl px-4 py-2 border hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* Tabla de ganadores */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-slate-700">
+                <tr>
+                  <Th>ID</Th>
+                  <Th>Actividad</Th>
+                  <Th>Usuario</Th>
+                  <Th>Lugar</Th>
+                  <Th>Descripción</Th>
+                  <Th>Foto</Th>
+                  <Th>Acciones</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((w) => (
+                  <tr key={w.id} className="border-b">
+                    <Td>{w.id}</Td>
+                    <Td>#{w.activity?.id} — {w.activity?.title}</Td>
+                    <Td>#{w.user?.id} — {w.user?.name}</Td>
+                    <Td>{w.place}°</Td>
+                    <Td className="max-w-[420px] whitespace-pre-wrap">{w.description || "-"}</Td>
+                    <Td>
+                      {w.photoUrl ? (
+                        <a
+                          href={w.photoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-umgBlue hover:underline"
+                        >
+                          ver
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </Td>
+                    <Td>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => edit(w)}
+                          className="rounded-xl px-3 py-1.5 bg-umgBlue text-white hover:brightness-105"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => del(w.id)}
+                          className="rounded-xl px-3 py-1.5 bg-rose-600 text-white hover:brightness-105"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+                {items.length === 0 && (
+                  <tr>
+                    <Td colSpan={7} className="text-center text-slate-500">
+                      Sin ganadores
+                    </Td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
 
-        {/* 6) Acciones */}
-        <div>
-          <button type="submit" disabled={loading} style={btn("#16a34a")}>
-            {editingId ? "Guardar cambios" : "Crear ganador"}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={() => { setEditingId(null); setForm(f => ({ ...emptyForm, activityId: f.activityId })); }}
-              style={{ ...btn("#fff"), color: "#111", border: "1px solid #ddd", marginLeft: 8 }}
-            >
-              Cancelar
-            </button>
-          )}
+          {loading && <p className="text-slate-500 mt-3">Procesando…</p>}
         </div>
-      </form>
-
-      {/* Tabla de ganadores */}
-      <div style={{ overflowX: "auto", marginTop: 12 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#f3f4f6" }}>
-              <Th>ID</Th>
-              <Th>Actividad</Th>
-              <Th>Usuario</Th>
-              <Th>Lugar</Th>
-              <Th>Descripción</Th>
-              <Th>Foto</Th>
-              <Th>Acciones</Th>
-            </tr>
-          </thead>
-        <tbody>
-          {items.map((w) => (
-            <tr key={w.id}>
-              <Td>{w.id}</Td>
-              <Td>#{w.activity?.id} — {w.activity?.title}</Td>
-              <Td>#{w.user?.id} — {w.user?.name}</Td>
-              <Td>{w.place}°</Td>
-              <Td style={{ maxWidth: 360, whiteSpace: "pre-wrap" }}>{w.description || "-"}</Td>
-              <Td>{w.photoUrl ? <a href={w.photoUrl} target="_blank" rel="noreferrer">ver</a> : "-"}</Td>
-              <Td>
-                <button onClick={() => edit(w)} style={btn("#2563eb")}>Editar</button>{" "}
-                <button onClick={() => del(w.id)} style={btn("#ef4444")}>Eliminar</button>
-              </Td>
-            </tr>
-          ))}
-          {items.length === 0 && (
-            <tr><Td colSpan={7}>Sin ganadores</Td></tr>
-          )}
-        </tbody>
-        </table>
       </div>
     </div>
   );
 }
 
-// Pequeños helpers para celdas
+// Helpers de celdas con clases coherentes
 function Th({ children }) {
-  return <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e5e7eb" }}>{children}</th>;
+  return <th className="text-left px-3 py-2 border-b">{children}</th>;
 }
-function Td({ children, colSpan }) {
-  return <td colSpan={colSpan} style={{ padding: 10, borderBottom: "1px solid #f3f4f6" }}>{children}</td>;
+function Td({ children, colSpan, className = "" }) {
+  return <td colSpan={colSpan} className={`px-3 py-2 ${className}`}>{children}</td>;
 }

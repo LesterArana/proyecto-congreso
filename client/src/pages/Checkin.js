@@ -1,27 +1,41 @@
 // client/src/pages/Checkin.js
 import { useState } from "react";
 import { api } from "../api";
-import QrScanner from "../components/QrScanner"; // 👈 importa el escáner
+import QrScanner from "../components/QrScanner";
 
 function ResultCard({ data }) {
   if (!data) return null;
   const { message, alreadyChecked, checkinAt, registrationId, user, activity } = data;
   return (
-    <div style={{ marginTop: 12, border: "1px solid #eee", borderRadius: 10, padding: 12 }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>{message}</div>
-      <div style={{ display: "grid", gap: 6 }}>
-        <div><b>Registro:</b> #{registrationId}</div>
-        <div><b>Usuario:</b> {user?.name} ({user?.email})</div>
-        <div><b>Actividad:</b> {activity?.title} — {new Date(activity?.date).toLocaleString()}</div>
-        <div><b>Check-in:</b> {checkinAt ? new Date(checkinAt).toLocaleString() : "N/A"}</div>
-        {alreadyChecked && <div style={{ color: "#b45309" }}>⚠ Ya estaba chequeado anteriormente</div>}
+    <div className="mt-4 border border-slate-200 rounded-2xl p-4 bg-slate-50">
+      <div className="font-bold text-slate-800 mb-2">{message}</div>
+      <div className="grid gap-1 text-slate-700 text-sm">
+        <div>
+          <b>Registro:</b> #{registrationId}
+        </div>
+        <div>
+          <b>Usuario:</b> {user?.name} ({user?.email})
+        </div>
+        <div>
+          <b>Actividad:</b> {activity?.title} —{" "}
+          {new Date(activity?.date).toLocaleString()}
+        </div>
+        <div>
+          <b>Check-in:</b>{" "}
+          {checkinAt ? new Date(checkinAt).toLocaleString() : "N/A"}
+        </div>
+        {alreadyChecked && (
+          <div className="text-amber-700 font-medium">
+            ⚠ Ya estaba chequeado anteriormente
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function Checkin() {
-  const [tab, setTab] = useState("regId"); // "regId" | "qr" | "cam"
+  const [tab, setTab] = useState("regId");
   const [regId, setRegId] = useState("");
   const [qrPayload, setQrPayload] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,7 +49,7 @@ export default function Checkin() {
       setLoading(true);
       const { data } = await api.post("/checkin", body);
       setResult(data);
-      setMsg({ ok: true, text: "Check-in procesado." });
+      setMsg({ ok: true, text: "✅ Check-in procesado." });
     } catch (err) {
       const text = err?.response?.data?.message || "Error realizando check-in";
       setMsg({ ok: false, text });
@@ -64,133 +78,159 @@ export default function Checkin() {
     doCheckin({ qrPayload: txt });
   };
 
-  // 👇 llamado desde el escáner
   const handleScan = (text) => {
-    // puedes validar mínimo que contenga { o "regId":
     if (!text) return;
     doCheckin({ qrPayload: text });
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-      <h2>Check-in (Staff)</h2>
-
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
-        {["regId", "qr", "cam"].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid #ddd",
-              background: tab === t ? "#2563eb" : "#fff",
-              color: tab === t ? "#fff" : "#111",
-              cursor: "pointer",
-            }}
-          >
-            {t === "regId" ? "Por regId" : t === "qr" ? "Pegar JSON" : "Cámara"}
-          </button>
-        ))}
-      </div>
-
-      {/* Form por regId */}
-      {tab === "regId" && (
-        <form onSubmit={submitRegId} style={{ display: "grid", gap: 8, marginTop: 8 }}>
-          <label style={{ display: "grid", gap: 6 }}>
-            regId
-            <input
-              type="number"
-              min={1}
-              value={regId}
-              onChange={(e) => setRegId(e.target.value)}
-              placeholder="Ej: 11"
-              style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd" }}
-              autoFocus
-            />
-          </label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{ background: "#059669", color: "#fff", padding: "8px 14px", border: "none", borderRadius: 8 }}
-            >
-              {loading ? "Procesando..." : "Marcar asistencia"}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setRegId(""); setResult(null); setMsg(null); }}
-              style={{ border: "1px solid #ddd", background: "#fff", padding: "8px 14px", borderRadius: 8 }}
-            >
-              Limpiar
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Form pegando JSON del QR */}
-      {tab === "qr" && (
-        <form onSubmit={submitQr} style={{ display: "grid", gap: 8, marginTop: 8 }}>
-          <label style={{ display: "grid", gap: 6 }}>
-            Contenido del QR (JSON)
-            <textarea
-              rows={6}
-              value={qrPayload}
-              onChange={(e) => setQrPayload(e.target.value)}
-              placeholder='{"regId":11,"user":{...},"activity":{...},"issuedAt":"..."}'
-              style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd", fontFamily: "monospace" }}
-            />
-          </label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{ background: "#059669", color: "#fff", padding: "8px 14px", border: "none", borderRadius: 8 }}
-            >
-              {loading ? "Procesando..." : "Marcar asistencia"}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setQrPayload(""); setResult(null); setMsg(null); }}
-              style={{ border: "1px solid #ddd", background: "#fff", padding: "8px 14px", borderRadius: 8 }}
-            >
-              Limpiar
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Cámara */}
-      {tab === "cam" && (
-        <div style={{ marginTop: 8 }}>
-          <QrScanner
-            onResult={handleScan}
-            onError={(e) => setMsg({ ok: false, text: e?.message || "Error de cámara" })}
-          />
-          <p style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-            Consejo: usa la cámara trasera si estás en móvil para mejor enfoque.
+    <div className="min-h-screen bg-umgBlue text-white">
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-6">
+          <h2 className="text-2xl font-bold text-umgBlue">Check-in (Staff)</h2>
+          <p className="text-slate-600 mb-4">
+            Usa cualquiera de los tres métodos: por ID, pegando JSON o usando
+            cámara.
           </p>
-        </div>
-      )}
 
-      {/* Mensaje */}
-      {msg && (
-        <div
-          style={{
-            marginTop: 12,
-            padding: 10,
-            borderRadius: 8,
-            background: msg.ok ? "#dcfce7" : "#fee2e2",
-            color: msg.ok ? "#065f46" : "#991b1b",
-          }}
-        >
-          {msg.text}
-        </div>
-      )}
+          {/* Tabs */}
+          <div className="flex gap-2 mb-4">
+            {[
+              { key: "regId", label: "Por regId" },
+              { key: "qr", label: "Pegar JSON" },
+              { key: "cam", label: "Cámara" },
+            ].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-2 rounded-xl border font-medium ${
+                  tab === t.key
+                    ? "bg-umgBlue text-white border-umgBlue"
+                    : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Resultado */}
-      <ResultCard data={result} />
+          {/* REG ID */}
+          {tab === "regId" && (
+            <form onSubmit={submitRegId} className="grid gap-3">
+              <label className="grid gap-1">
+                <span className="text-slate-700 font-medium">RegId</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={regId}
+                  onChange={(e) => setRegId(e.target.value)}
+                  placeholder="Ej: 11"
+                  className="rounded-xl border-slate-300 focus:ring-umgBlue focus:border-umgBlue"
+                  autoFocus
+                />
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`px-4 py-2 rounded-xl font-semibold ${
+                    loading
+                      ? "bg-slate-400 text-white cursor-not-allowed"
+                      : "bg-emerald-600 text-white hover:brightness-105"
+                  }`}
+                >
+                  {loading ? "Procesando..." : "Marcar asistencia"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegId("");
+                    setResult(null);
+                    setMsg(null);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100"
+                >
+                  Limpiar
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* JSON */}
+          {tab === "qr" && (
+            <form onSubmit={submitQr} className="grid gap-3">
+              <label className="grid gap-1">
+                <span className="text-slate-700 font-medium">
+                  Contenido del QR (JSON)
+                </span>
+                <textarea
+                  rows={6}
+                  value={qrPayload}
+                  onChange={(e) => setQrPayload(e.target.value)}
+                  placeholder='{"regId":11,"user":{...},"activity":{...},"issuedAt":"..."}'
+                  className="rounded-xl border-slate-300 font-mono focus:ring-umgBlue focus:border-umgBlue"
+                />
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`px-4 py-2 rounded-xl font-semibold ${
+                    loading
+                      ? "bg-slate-400 text-white cursor-not-allowed"
+                      : "bg-emerald-600 text-white hover:brightness-105"
+                  }`}
+                >
+                  {loading ? "Procesando..." : "Marcar asistencia"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQrPayload("");
+                    setResult(null);
+                    setMsg(null);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100"
+                >
+                  Limpiar
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* CAM */}
+          {tab === "cam" && (
+            <div>
+              <QrScanner
+                onResult={handleScan}
+                onError={(e) =>
+                  setMsg({ ok: false, text: e?.message || "Error de cámara" })
+                }
+              />
+              <p className="text-sm text-slate-500 mt-2">
+                Consejo: usa la cámara trasera si estás en móvil para mejor
+                enfoque.
+              </p>
+            </div>
+          )}
+
+          {/* Mensajes */}
+          {msg && (
+            <div
+              className={`mt-4 rounded-xl px-3 py-2 ${
+                msg.ok
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-rose-50 text-rose-700 border border-rose-200"
+              }`}
+            >
+              {msg.text}
+            </div>
+          )}
+
+          {/* Resultado */}
+          <ResultCard data={result} />
+        </div>
+      </div>
     </div>
   );
 }

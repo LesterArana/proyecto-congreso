@@ -35,59 +35,80 @@ export default function Results() {
     }
   }
 
-  useEffect(() => { load(); /* carga inicial */ }, []); // eslint-disable-line
-  useEffect(() => { load(); /* recarga al cambiar año */ }, [year]); // eslint-disable-line
+  useEffect(() => {
+    load(); // carga inicial
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    load(); // recarga al cambiar año
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year]);
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
-      <h2 style={{ marginBottom: 12 }}>Resultados</h2>
+    <div className="min-h-screen bg-umgBlue text-white">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-6">
+          <h2 className="text-2xl font-bold text-umgBlue mb-4">Resultados</h2>
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
-        <select
-          value={year}
-          onChange={(e) => setYear(e.target.value)}
-          style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd" }}
-          title="Filtrar por año (opcional)"
-        >
-          <option value="">Filtrar por año (opcional)</option>
-          {/* Años detectados desde los datos ya cargados */}
-          {yearsFromData.map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-          {/* fallback por si está vacío el listado inicial */}
-          {yearsFromData.length === 0 && (
-            <>
-              <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
-              <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
-            </>
+          {/* Filtros */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mb-4">
+            <select
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              title="Filtrar por año (opcional)"
+              className="rounded-xl border-slate-300 focus:border-umgBlue focus:ring-umgBlue"
+            >
+              <option value="">Filtrar por año (opcional)</option>
+              {yearsFromData.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+              {yearsFromData.length === 0 && (
+                <>
+                  <option value={new Date().getFullYear()}>
+                    {new Date().getFullYear()}
+                  </option>
+                  <option value={new Date().getFullYear() - 1}>
+                    {new Date().getFullYear() - 1}
+                  </option>
+                </>
+              )}
+            </select>
+
+            <button
+              onClick={load}
+              disabled={loading}
+              className={`inline-flex items-center justify-center rounded-xl px-4 py-2 font-semibold ${
+                loading
+                  ? "bg-slate-400 text-white cursor-not-allowed"
+                  : "bg-umgBlue text-white hover:brightness-105"
+              }`}
+            >
+              {loading ? "Cargando..." : "Aplicar"}
+            </button>
+          </div>
+
+          {/* Mensajes */}
+          {msg && (
+            <div
+              className={`mb-4 rounded-xl px-3 py-2 ${
+                msg.ok
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-rose-50 text-rose-700 border border-rose-200"
+              }`}
+            >
+              {msg.text}
+            </div>
           )}
-        </select>
-        <button
-          onClick={load}
-          disabled={loading}
-          style={{ background: "#2563eb", color: "#fff", padding: "8px 14px", border: "none", borderRadius: 8, cursor: "pointer" }}
-        >
-          {loading ? "Cargando..." : "Aplicar"}
-        </button>
-      </div>
 
-      {msg && (
-        <div style={{
-          padding: 10, borderRadius: 8,
-          background: msg.ok ? "#dcfce7" : "#fee2e2",
-          color: msg.ok ? "#065f46" : "#991b1b",
-          marginBottom: 12
-        }}>
-          {msg.text}
+          {/* Grilla de ganadores */}
+          <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
+            {items.map((w) => (
+              <WinnerCard key={w.id} w={w} />
+            ))}
+          </div>
         </div>
-      )}
-
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-        gap: 12
-      }}>
-        {items.map((w) => <WinnerCard key={w.id} w={w} />)}
       </div>
     </div>
   );

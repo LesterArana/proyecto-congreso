@@ -12,14 +12,25 @@ export default function ActivityDetail() {
 
   useEffect(() => {
     setLoading(true);
-    api.get(`/activities/${id}`)
-      .then(res => setA(res.data))
-      .catch(e => setErr(e?.response?.data?.message || "No se pudo cargar la actividad"))
+    api
+      .get(`/activities/${id}`)
+      .then((res) => setA(res.data))
+      .catch((e) =>
+        setErr(e?.response?.data?.message || "No se pudo cargar la actividad")
+      )
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div style={{ padding: 16 }}>Cargando…</div>;
-  if (err) return <div style={{ padding: 16, color: "crimson" }}>{err}</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen bg-umgBlue text-white p-4">Cargando…</div>
+    );
+
+  if (err)
+    return (
+      <div className="min-h-screen bg-umgBlue text-white p-4">{err}</div>
+    );
+
   if (!a) return null;
 
   const fecha = new Date(a.date).toLocaleString();
@@ -29,28 +40,46 @@ export default function ActivityDetail() {
     navigate(`/register?activityId=${a.id}`);
   };
 
-  return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: 16 }}>
-      <p><Link to="/">{'<'} Volver</Link></p>
-      <h2 style={{ margin: "8px 0" }}>{a.kind}: {a.title}</h2>
-      <p style={{ color: "#555", margin: "4px 0" }}>{fecha}</p>
-      <p style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>{a.description || "Sin descripción."}</p>
+  const btnEnabled =
+    "inline-flex items-center rounded-xl bg-umgBlue text-white px-4 py-2 font-semibold hover:brightness-105";
+  const btnDisabled =
+    "inline-flex items-center rounded-xl bg-slate-400 text-white px-4 py-2 font-semibold cursor-not-allowed";
 
-      <div style={{
-        marginTop: 16, padding: 12, border: "1px solid #eee",
-        borderRadius: 10, display: "flex", gap: 16, alignItems: "center"
-      }}>
-        <div><b>Cupos:</b> {a.available}/{a.capacity}</div>
-        <button
-          onClick={goRegister}
-          disabled={a.available === 0}
-          style={{
-            background: a.available === 0 ? "#9ca3af" : "#2563eb",
-            color: "#fff", padding: "8px 14px", border: "none", borderRadius: 8, cursor: "pointer"
-          }}
-        >
-          {a.available === 0 ? "Cupo lleno" : "Inscribirme"}
-        </button>
+  return (
+    <div className="min-h-screen bg-umgBlue text-white">
+      <div className="max-w-[900px] mx-auto px-4 py-8">
+        <p className="mb-3">
+          <Link
+            to="/"
+            className="text-blue-100 hover:text-white underline underline-offset-2"
+          >
+            ‹ Volver
+          </Link>
+        </p>
+
+        <div className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-6">
+          <h2 className="text-2xl font-bold text-umgBlue">
+            {a.kind}: {a.title}
+          </h2>
+          <p className="text-slate-600 mt-1">{fecha}</p>
+
+          <p className="mt-4 whitespace-pre-wrap">
+            {a.description || "Sin descripción."}
+          </p>
+
+          <div className="mt-5 flex flex-wrap items-center gap-4 border border-slate-200 rounded-xl p-4">
+            <div className="font-medium">
+              <b>Cupos:</b> {a.available}/{a.capacity}
+            </div>
+            <button
+              onClick={goRegister}
+              disabled={a.available === 0}
+              className={a.available === 0 ? btnDisabled : btnEnabled}
+            >
+              {a.available === 0 ? "Cupo lleno" : "Inscribirme"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

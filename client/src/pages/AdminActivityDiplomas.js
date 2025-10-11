@@ -1,10 +1,11 @@
+// client/src/pages/AdminActivityDiplomas.js
 import { useEffect, useState } from "react";
 import { api } from "../api";
 
 export default function AdminActivityDiplomas() {
   const [activityId, setActivityId] = useState("");
   const [rows, setRows] = useState([]);
-  const [msg, setMsg] = useState(null);   // { ok: boolean, text: string } | string | null
+  const [msg, setMsg] = useState(null); // { ok: boolean, text: string } | string | null
   const [loading, setLoading] = useState(false);
   const [onlyAttended, setOnlyAttended] = useState(true);
 
@@ -14,10 +15,13 @@ export default function AdminActivityDiplomas() {
     setLoading(true);
     if (!keepMsg) setMsg(null);
     try {
-      const res = await api.get(`/activities/${activityId}/registrations`); // x-admin-key por interceptor
+      const res = await api.get(`/activities/${activityId}/registrations`);
       setRows(res.data || []);
     } catch (e) {
-      setMsg({ ok: false, text: e?.response?.data?.error || "Error cargando inscripciones." });
+      setMsg({
+        ok: false,
+        text: e?.response?.data?.error || "Error cargando inscripciones.",
+      });
     } finally {
       setLoading(false);
     }
@@ -25,13 +29,15 @@ export default function AdminActivityDiplomas() {
 
   async function genOne(regId) {
     setLoading(true);
-    // no limpiamos msg aquí; lo actualizamos al final
     try {
       await api.post(`/diplomas/generate/${regId}`); // protegido por x-admin-key
       setMsg({ ok: true, text: `✅ Diploma generado para registro #${regId}.` });
-      await loadRegs({ keepMsg: true }); // ⬅️ no borrar el mensaje recién puesto
+      await loadRegs({ keepMsg: true });
     } catch (e) {
-      setMsg({ ok: false, text: e?.response?.data?.error || "❌ No se pudo generar el diploma." });
+      setMsg({
+        ok: false,
+        text: e?.response?.data?.error || "❌ No se pudo generar el diploma.",
+      });
     } finally {
       setLoading(false);
     }
@@ -68,93 +74,143 @@ export default function AdminActivityDiplomas() {
         });
       }
 
-      await loadRegs({ keepMsg: true }); // ⬅️ mantener el mensaje visible
+      await loadRegs({ keepMsg: true });
     } catch (e) {
-      setMsg({ ok: false, text: e?.response?.data?.error || "❌ Error generando diplomas en lote." });
+      setMsg({
+        ok: false,
+        text:
+          e?.response?.data?.error || "❌ Error generando diplomas en lote.",
+      });
     } finally {
       setLoading(false);
     }
   }
 
-  // (Opcional) auto-ocultar mensaje después de 5s
+  // Auto-ocultar mensaje después de 5s
   useEffect(() => {
     if (!msg) return;
     const t = setTimeout(() => setMsg(null), 5000);
     return () => clearTimeout(t);
   }, [msg]);
 
-  const th = { textAlign: 'left', padding: 8, borderBottom: '1px solid #e5e7eb' };
-  const td = { padding: 8, borderBottom: '1px solid #f3f4f6' };
-  const btn = { background: '#2563eb', color: '#fff', padding: '6px 10px', border: 'none', borderRadius: 8, cursor: 'pointer', textDecoration: 'none' };
-
   return (
-    <div style={{ maxWidth: 960, margin: '20px auto', padding: 16 }}>
-      <h2>Diplomas por actividad (Admin)</h2>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-6">
+          <h2 className="text-2xl font-bold text-umgBlue">Diplomas por actividad (Admin)</h2>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <input
-          type="number"
-          placeholder="Activity ID"
-          value={activityId}
-          onChange={(e) => setActivityId(e.target.value)}
-          style={{ padding: 8, border: '1px solid #ddd', borderRadius: 8 }}
-        />
-        <button onClick={() => loadRegs()} style={btn} disabled={!activityId || loading}>Cargar</button>
-      </div>
+          {/* Controles superiores */}
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+            <input
+              type="number"
+              placeholder="Activity ID"
+              value={activityId}
+              onChange={(e) => setActivityId(e.target.value)}
+              className="rounded-xl border border-slate-300 px-3 py-2 w-full sm:w-44 focus:ring-umgBlue focus:border-umgBlue outline-none"
+            />
+            <button
+              onClick={() => loadRegs()}
+              disabled={!activityId || loading}
+              className={`rounded-xl px-4 py-2 font-semibold text-white ${
+                !activityId || loading
+                  ? "bg-slate-400 cursor-not-allowed"
+                  : "bg-umgBlue hover:brightness-105"
+              }`}
+            >
+              {loading ? "Cargando..." : "Cargar"}
+            </button>
 
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <input type="checkbox" checked={onlyAttended} onChange={(e) => setOnlyAttended(e.target.checked)} />
-          Solo asistentes
-        </label>
-        <button onClick={genBulk} style={{ ...btn, marginLeft: 12 }} disabled={!activityId || loading}>
-          Generar diplomas (lote)
-        </button>
-      </div>
+            <label className="inline-flex items-center gap-2 text-sm ml-0 sm:ml-2">
+              <input
+                type="checkbox"
+                checked={onlyAttended}
+                onChange={(e) => setOnlyAttended(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              Solo asistentes
+            </label>
 
-      {msg && (
-        <div style={{
-          padding: 10, borderRadius: 8,
-          background: (typeof msg === 'object' ? msg.ok : false) ? '#dcfce7' : '#fee2e2',
-          color: (typeof msg === 'object' ? msg.ok : false) ? '#065f46' : '#991b1b',
-          marginBottom: 12
-        }}>
-          {typeof msg === 'string' ? msg : msg.text}
+            <button
+              onClick={genBulk}
+              disabled={!activityId || loading}
+              className={`rounded-xl px-4 py-2 font-semibold ml-0 sm:ml-auto ${
+                !activityId || loading
+                  ? "bg-slate-400 text-white cursor-not-allowed"
+                  : "bg-umgBlue text-white hover:brightness-105"
+              }`}
+            >
+              Generar diplomas (lote)
+            </button>
+          </div>
+
+          {/* Mensaje global */}
+          {msg && (
+            <div
+              className={`mt-4 rounded-xl px-3 py-2 ${
+                (typeof msg === "object" ? msg.ok : false)
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-rose-50 text-rose-700 border border-rose-200"
+              }`}
+            >
+              {typeof msg === "string" ? msg : msg.text}
+            </div>
+          )}
+
+          {/* Tabla de registros */}
+          <div className="overflow-x-auto mt-4">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-slate-700">
+                <tr>
+                  <th className="text-left px-3 py-2 border-b">RegID</th>
+                  <th className="text-left px-3 py-2 border-b">Usuario</th>
+                  <th className="text-left px-3 py-2 border-b">Email</th>
+                  <th className="text-left px-3 py-2 border-b">Estado</th>
+                  <th className="text-left px-3 py-2 border-b">Asistió</th>
+                  <th className="text-left px-3 py-2 border-b">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="border-b">
+                    <td className="px-3 py-2">{r.id}</td>
+                    <td className="px-3 py-2">{r.user?.name}</td>
+                    <td className="px-3 py-2">{r.user?.email}</td>
+                    <td className="px-3 py-2">{r.status}</td>
+                    <td className="px-3 py-2">
+                      {r.status === "CHECKED_IN" ? "Sí" : "No"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <button
+                        onClick={() => genOne(r.id)}
+                        disabled={loading}
+                        className={`inline-flex items-center rounded-xl px-3 py-1.5 font-medium ${
+                          loading
+                            ? "bg-slate-400 text-white cursor-not-allowed"
+                            : "bg-umgBlue text-white hover:brightness-105"
+                        }`}
+                      >
+                        Generar diploma
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-4 text-center text-slate-500">
+                      Sin datos
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Nota opcional */}
+          <p className="text-xs text-slate-500 mt-3">
+            Consejo: si no aparecen inscripciones, confirma que el <code>x-admin-key</code> se esté enviando
+            vía tu interceptor de Axios y que el ID de actividad sea correcto.
+          </p>
         </div>
-      )}
-
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f3f4f6' }}>
-              <th style={th}>RegID</th>
-              <th style={th}>Usuario</th>
-              <th style={th}>Email</th>
-              <th style={th}>Estado</th>
-              <th style={th}>Asistió</th>
-              <th style={th}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td style={td}>{r.id}</td>
-                <td style={td}>{r.user?.name}</td>
-                <td style={td}>{r.user?.email}</td>
-                <td style={td}>{r.status}</td>
-                <td style={td}>{r.status === 'CHECKED_IN' ? 'Sí' : 'No'}</td>
-                <td style={td}>
-                  <button onClick={() => genOne(r.id)} style={btn} disabled={loading}>
-                    Generar diploma
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td style={td} colSpan={6}>Sin datos</td></tr>
-            )}
-          </tbody>
-        </table>
       </div>
     </div>
   );

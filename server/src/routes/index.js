@@ -2,8 +2,7 @@
 import { Router } from "express";
 import { requireAdmin } from "../middlewares/admin.middleware.js";
 
-
-// ===== Controlador PÚBLICO (ya tienes estas funcs ahí)
+// ===== Controlador PÚBLICO
 import {
   listActivities,            // pública
   activitiesSummary,         // pública
@@ -16,7 +15,7 @@ import {
   getActivityById,           // pública
 } from "../controllers/registrations.controller.js";
 
-// ===== Controlador ADMIN de actividades (tu archivo nuevo)
+// ===== Controlador ADMIN de actividades
 import {
   listActivitiesAdmin,
   getActivityAdmin,
@@ -25,7 +24,7 @@ import {
   deleteActivity,
 } from "../controllers/activities.controller.js";
 
-// ===== Rutas de otros módulos
+// ===== Subrutas de otros módulos
 import diplomasRoutes from "./diplomas.routes.js";
 import winnersRoutes from "./winners.routes.js";
 import reportsRoutes from "./reports.routes.js";
@@ -44,7 +43,7 @@ router.get("/activities/summary", activitiesSummary);
 router.get("/activities/:id", getActivityById);
 
 router.post("/registrations", createRegistration);
-router.post("/checkin", checkin); // si quieres, luego lo protegemos
+router.post("/checkin", checkin);
 
 router.get("/registrations/by-email", listRegistrationsByEmail);
 router.get("/activities/:id/attendances", listAttendancesByActivity);
@@ -68,10 +67,8 @@ router.delete("/admin/activities/:id", requireAdmin, deleteActivity);
 router.use("/diplomas", diplomasRoutes);
 router.use("/winners", winnersRoutes);
 router.use("/reports", reportsRoutes);
-
-router.get("/admin/ping", requireAdmin, (req, res) => res.json({ ok: true }));
-
 router.use("/site", siteRoutes);
 
+router.get("/admin/ping", requireAdmin, (req, res) => res.json({ ok: true }));
 
 export default router;

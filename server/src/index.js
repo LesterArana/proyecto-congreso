@@ -1,34 +1,40 @@
 // server/src/index.js
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
-import router from './routes/index.js';
-import { errorHandler } from './middlewares/error.middleware.js';
+import router from "./routes/index.js";
+import { errorHandler } from "./middlewares/error.middleware.js";
+import { adminMiddleware } from "./middlewares/admin.middleware.js";
+import uploadsRoutes from "./routes/uploads.routes.js";
+
 
 const app = express();
 
-// Para poder usar __dirname en ESM
+// ESM __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
 
-// Middlewares base
 app.use(cors());
 app.use(express.json());
 
-// Servir estáticos desde /public (ej: QR, diplomas, etc.)
-app.use(express.static(path.resolve(__dirname, '..', 'public')));
+// estáticos
+app.use("/public", express.static(PUBLIC_DIR));
 
-// Rutas de la API
-app.use('/api', router);
+// endpoint de subida protegido
+app.use("/api/uploads", adminMiddleware, uploadsRoutes);
 
-// Manejador de errores (siempre al final de las rutas)
+// resto de API
+app.use("/api", router);
+
+// manejador de errores al final
 app.use(errorHandler);
 
-// Levantar servidor
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`✅ API running on http://localhost:${PORT}`);
+  console.log(`📁 Static: http://localhost:${PORT}/public`);
 });

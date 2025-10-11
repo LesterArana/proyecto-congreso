@@ -1,3 +1,4 @@
+// client/src/App.js
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Páginas públicas
@@ -21,10 +22,11 @@ import Header from "./components/Header";
 import RequireAdmin from "./components/RequireAdmin.jsx";
 
 import AdminWinners from "./pages/AdminWinners";
-import Home from "./pages/Home";
+// import Home from "./pages/Home"; // Si deseas usar Home en "/home", descomenta esta línea
 
 // Estilos
 import "./App.css";
+import "./styles/umg.css";
 
 export default function App() {
   return (
@@ -33,6 +35,9 @@ export default function App() {
       <Routes>
         {/* públicas */}
         <Route path="/" element={<Landing />} />
+        {/* Si quieres exponer Home aparte:
+            <Route path="/home" element={<Home />} />
+        */}
         <Route path="/register" element={<Register />} />
         <Route path="/results" element={<Results />} />
         <Route path="/faq" element={<FAQ />} />
@@ -96,15 +101,13 @@ export default function App() {
         <Route path="/admin/checkin" element={<Navigate to="/checkin" replace />} />
 
         <Route
-  path="/admin/winners"
-  element={
-    <RequireAdmin>
-      <AdminWinners />
-    </RequireAdmin>
-  }
-/>
-
-        <Route path="/" element={<Home />} />
+          path="/admin/winners"
+          element={
+            <RequireAdmin>
+              <AdminWinners />
+            </RequireAdmin>
+          }
+        />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
@@ -116,9 +119,11 @@ export default function App() {
 // Componente 404 simple por si no lo tienes
 function NotFound() {
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-      <h2>Página no encontrada</h2>
-      <p>La ruta a la que intentaste acceder no existe.</p>
+    <div className="container">
+      <div className="card">
+        <h2 className="h2">Página no encontrada</h2>
+        <p className="sub">La ruta a la que intentaste acceder no existe.</p>
+      </div>
     </div>
   );
 }

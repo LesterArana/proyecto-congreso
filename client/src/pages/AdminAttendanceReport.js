@@ -1,5 +1,6 @@
+// client/src/pages/AdminAttendanceReport.js
 import { useEffect, useState } from 'react';
-import { api } from '../api'; // usa tu axios instance que ya agrega baseURL; añade header si tu requireAdmin lo necesita
+import { api } from '../api';
 
 export default function AdminAttendanceReport() {
   const [rows, setRows] = useState([]);
@@ -9,11 +10,10 @@ export default function AdminAttendanceReport() {
   const [detail, setDetail] = useState(null);
 
   async function loadSummary() {
-    setLoading(true); setMsg(null);
+    setLoading(true);
+    setMsg(null);
     try {
-      const res = await api.get('/reports/attendance', {
-        // headers: { 'x-admin-key': import.meta.env.VITE_ADMIN_KEY } // si tu axios no lo incluye ya
-      });
+      const res = await api.get('/reports/attendance');
       setRows(res.data.rows || []);
     } catch (e) {
       setMsg('Error cargando resumen.');
@@ -24,7 +24,8 @@ export default function AdminAttendanceReport() {
 
   async function loadDetail() {
     if (!selectedId) return;
-    setLoading(true); setMsg(null);
+    setLoading(true);
+    setMsg(null);
     try {
       const res = await api.get(`/reports/attendance/activities/${selectedId}`);
       setDetail(res.data);
@@ -38,94 +39,133 @@ export default function AdminAttendanceReport() {
   useEffect(() => { loadSummary(); }, []);
 
   return (
-    <div style={{ maxWidth: 960, margin: '20px auto', padding: 16 }}>
-      <h2>Reporte de Asistencia</h2>
-      {loading && <p>Cargando...</p>}
-      {msg && <p style={{ color: '#991b1b' }}>{msg}</p>}
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-6">
+          <h2 className="text-2xl font-bold text-umgBlue">Reporte de Asistencia</h2>
 
-      <div style={{ overflowX: 'auto', marginTop: 12 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f3f4f6' }}>
-              <th style={th}>ID</th>
-              <th style={th}>Actividad</th>
-              <th style={th}>Fecha</th>
-              <th style={th}>Inscritos</th>
-              <th style={th}>Asistencias</th>
-              <th style={th}>%</th>
-              <th style={th}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.activityId}>
-                <td style={td}>{r.activityId}</td>
-                <td style={td}>{r.title}</td>
-                <td style={td}>{r.date ? new Date(r.date).toLocaleString() : '-'}</td>
-                <td style={td}>{r.totalRegistrations}</td>
-                <td style={td}>{r.totalAttendances}</td>
-                <td style={td}>{(r.attendanceRate * 100).toFixed(1)}%</td>
-                <td style={td}>
-                  <button onClick={() => { setSelectedId(r.activityId); setDetail(null); }} style={btn}>
-                    Ver detalle
-                  </button>
-                  <a href={`${api.defaults.baseURL}/reports/attendance/activities/${r.activityId}.csv`} style={{ ...btn, marginLeft: 8 }}>
-                    Descargar CSV
-                  </a>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && !loading && <tr><td style={td} colSpan={7}>Sin datos</td></tr>}
-          </tbody>
-        </table>
-      </div>
+          {loading && <p className="text-slate-500 mt-2">Cargando...</p>}
+          {msg && <p className="text-rose-700 mt-2">{msg}</p>}
 
-      {selectedId && (
-        <div style={{ marginTop: 24 }}>
-          <h3>Detalle actividad #{selectedId}</h3>
-          <button onClick={loadDetail} style={btn}>Cargar detalle</button>
-          {detail && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ marginBottom: 8 }}>
-                <b>{detail.activity?.title}</b> — {detail.activity?.date ? new Date(detail.activity.date).toLocaleString() : '-'}
+          {/* Tabla resumen */}
+          <div className="overflow-x-auto mt-4">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-slate-700">
+                <tr>
+                  <th className="text-left px-3 py-2 border-b">ID</th>
+                  <th className="text-left px-3 py-2 border-b">Actividad</th>
+                  <th className="text-left px-3 py-2 border-b">Fecha</th>
+                  <th className="text-left px-3 py-2 border-b">Inscritos</th>
+                  <th className="text-left px-3 py-2 border-b">Asistencias</th>
+                  <th className="text-left px-3 py-2 border-b">%</th>
+                  <th className="text-left px-3 py-2 border-b">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.activityId} className="border-b">
+                    <td className="px-3 py-2">{r.activityId}</td>
+                    <td className="px-3 py-2">{r.title}</td>
+                    <td className="px-3 py-2">
+                      {r.date ? new Date(r.date).toLocaleString() : '-'}
+                    </td>
+                    <td className="px-3 py-2">{r.totalRegistrations}</td>
+                    <td className="px-3 py-2">{r.totalAttendances}</td>
+                    <td className="px-3 py-2">
+                      {(r.attendanceRate * 100).toFixed(1)}%
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => { setSelectedId(r.activityId); setDetail(null); }}
+                          className="inline-flex items-center rounded-xl bg-umgBlue text-white px-3 py-1.5 hover:brightness-105"
+                        >
+                          Ver detalle
+                        </button>
+                        <a
+                          href={`${api.defaults.baseURL}/reports/attendance/activities/${r.activityId}.csv`}
+                          className="inline-flex items-center rounded-xl border px-3 py-1.5 hover:bg-slate-50"
+                        >
+                          Descargar CSV
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {rows.length === 0 && !loading && (
+                  <tr>
+                    <td className="px-3 py-4 text-center text-slate-500" colSpan={7}>
+                      Sin datos
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Detalle por actividad */}
+          {selectedId && (
+            <div className="mt-8">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-semibold text-umgBlue m-0">
+                  Detalle actividad #{selectedId}
+                </h3>
+                <button
+                  onClick={loadDetail}
+                  className="inline-flex items-center rounded-xl bg-umgBlue text-white px-3 py-1.5 hover:brightness-105"
+                >
+                  Cargar detalle
+                </button>
               </div>
-              <div style={{ marginBottom: 8 }}>
-                Inscritos: {detail.totals?.totalRegistrations} | Asistencias: {detail.totals?.totalAttendances} | %: {(detail.totals?.attendanceRate * 100).toFixed(1)}%
-              </div>
-              <div style={{ maxHeight: 400, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f3f4f6' }}>
-                      <th style={th}>RegID</th>
-                      <th style={th}>Nombre</th>
-                      <th style={th}>Correo</th>
-                      <th style={th}>Tipo</th>
-                      <th style={th}>Asistió</th>
-                      <th style={th}>Check-in</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detail.items.map(it => (
-                      <tr key={it.registrationId}>
-                        <td style={td}>{it.registrationId}</td>
-                        <td style={td}>{it.userName}</td>
-                        <td style={td}>{it.userEmail}</td>
-                        <td style={td}>{it.userType}</td>
-                        <td style={td}>{it.attended ? 'Sí' : 'No'}</td>
-                        <td style={td}>{it.checkinAt ? new Date(it.checkinAt).toLocaleString() : '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+
+              {detail && (
+                <div className="mt-4">
+                  <div className="mb-2">
+                    <b>{detail.activity?.title}</b> —{' '}
+                    {detail.activity?.date
+                      ? new Date(detail.activity.date).toLocaleString()
+                      : '-'}
+                  </div>
+                  <div className="mb-3">
+                    Inscritos: {detail.totals?.totalRegistrations} | Asistencias:{' '}
+                    {detail.totals?.totalAttendances} | %:{' '}
+                    {(detail.totals?.attendanceRate * 100).toFixed(1)}%
+                  </div>
+
+                  <div className="max-h-[420px] overflow-y-auto border border-slate-200 rounded-xl">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-700 sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2 border-b">RegID</th>
+                          <th className="text-left px-3 py-2 border-b">Nombre</th>
+                          <th className="text-left px-3 py-2 border-b">Correo</th>
+                          <th className="text-left px-3 py-2 border-b">Tipo</th>
+                          <th className="text-left px-3 py-2 border-b">Asistió</th>
+                          <th className="text-left px-3 py-2 border-b">Check-in</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detail.items.map((it) => (
+                          <tr key={it.registrationId} className="border-b">
+                            <td className="px-3 py-2">{it.registrationId}</td>
+                            <td className="px-3 py-2">{it.userName}</td>
+                            <td className="px-3 py-2">{it.userEmail}</td>
+                            <td className="px-3 py-2">{it.userType}</td>
+                            <td className="px-3 py-2">{it.attended ? 'Sí' : 'No'}</td>
+                            <td className="px-3 py-2">
+                              {it.checkinAt ? new Date(it.checkinAt).toLocaleString() : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
-
-const th = { textAlign: 'left', padding: '8px', borderBottom: '1px solid #e5e7eb' };
-const td = { padding: '8px', borderBottom: '1px solid #f3f4f6' };
-const btn = { background: '#2563eb', color: '#fff', padding: '6px 10px', border: 'none', borderRadius: 8, cursor: 'pointer', textDecoration: 'none', display: 'inline-block' };

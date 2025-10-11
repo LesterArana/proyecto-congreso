@@ -1,44 +1,50 @@
 // client/src/components/WinnerCard.js
+import { useState, useMemo } from "react";
+
 export default function WinnerCard({ w }) {
-  const d = new Date(w.activity?.date || Date.now());
+  const [imgOk, setImgOk] = useState(Boolean(w?.photoUrl));
+  const date = useMemo(
+    () => new Date(w?.activity?.date || Date.now()),
+    [w?.activity?.date]
+  );
+
   return (
-    <div style={{
-      border: "1px solid #eee", borderRadius: 12, overflow: "hidden",
-      display: "grid", gridTemplateRows: "180px 1fr"
-    }}>
-      <div style={{ background: "#f9fafb", position: "relative" }}>
-        {w.photoUrl ? (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
+      {/* Imagen / placeholder */}
+      <div className="relative h-44 bg-slate-50">
+        {w?.photoUrl && imgOk ? (
           <a href={w.photoUrl} target="_blank" rel="noreferrer" title="Ver foto">
             <img
               src={w.photoUrl}
-              alt={w.activity?.title || "Ganador"}
-              style={{ width: "100%", height: "180px", objectFit: "cover", display: "block" }}
-              onError={(e) => (e.currentTarget.style.display = "none")}
+              alt={w?.activity?.title || "Ganador"}
+              className="w-full h-44 object-cover block"
+              onError={() => setImgOk(false)}
             />
           </a>
         ) : (
-          <div style={{
-            width: "100%", height: "100%", display: "grid", placeItems: "center",
-            color: "#9ca3af", fontSize: 13
-          }}>
+          <div className="w-full h-full grid place-items-center text-slate-400 text-sm">
             Sin foto
           </div>
         )}
-        <div style={{
-          position: "absolute", top: 8, left: 8, background: "#111827", color: "#fff",
-          fontSize: 12, padding: "2px 8px", borderRadius: 999
-        }}>
-          {w.place}º lugar
+
+        {/* Cinta del lugar */}
+        <div className="absolute top-2 left-2 rounded-full text-white text-xs px-3 py-1 bg-umgBlue/95">
+          {w?.place}º lugar
         </div>
       </div>
 
-      <div style={{ padding: 12, display: "grid", gap: 6 }}>
-        <div style={{ fontWeight: 700 }}>{w.user?.name}</div>
-        <div style={{ color: "#374151", fontSize: 14 }}>
-          {w.activity?.title} <span style={{ color: "#6b7280" }}>({d.getFullYear()})</span>
+      {/* Contenido */}
+      <div className="p-3 grid gap-1.5">
+        <div className="font-semibold text-slate-900">
+          {w?.user?.name || "Participante"}
         </div>
-        {w.description && (
-          <div style={{ fontSize: 13, color: "#4b5563", marginTop: 4 }}>
+        <div className="text-sm text-slate-700">
+          {w?.activity?.title || "Actividad"}{" "}
+          <span className="text-slate-500">({date.getFullYear()})</span>
+        </div>
+
+        {w?.description && (
+          <div className="text-sm text-slate-600 mt-1">
             {w.description}
           </div>
         )}

@@ -1,49 +1,84 @@
 // src/components/Header.js
+// src/components/Header.js
 import { Link, NavLink } from "react-router-dom";
-
-
-const linkStyle = ({ isActive }) => ({
-  padding: "8px 12px",
-  borderRadius: 8,
-  textDecoration: "none",
-  color: isActive ? "white" : "#111",
-  background: isActive ? "#2563eb" : "transparent",
-});
+import { useEffect, useState } from "react";
 
 export default function Header() {
+  const [isAdmin, setIsAdmin] = useState(
+    Boolean(localStorage.getItem("adminKey"))
+  );
+
+  useEffect(() => {
+    // Si cambian adminKey en otra pestaña, reflejar aquí
+    const onStorage = (e) => {
+      if (e.key === "adminKey") {
+        setIsAdmin(Boolean(e.newValue));
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem("adminKey");
+    setIsAdmin(false);
+    window.location.href = "/"; // redirige al inicio
+  };
+
+  const linkCls = ({ isActive }) =>
+    [
+      "px-3 py-2 rounded-xl font-medium transition",
+      isActive
+        ? "bg-white text-umgBlue"
+        : "text-white/90 hover:bg-white/10 hover:text-white",
+    ].join(" ");
+
   return (
-    <header style={{ borderBottom: "1px solid #eee", background: "#fff" }}>
-      <div style={{
-        maxWidth: 1100, margin: "0 auto", padding: "16px 24px",
-        display: "flex", alignItems: "center", gap: 24, justifyContent: "space-between"
-      }}>
-        <Link to="/" style={{ textDecoration: "none" }}>
-          <h1 style={{ margin: 0, fontSize: 20 }}>🎓 Congreso de Tecnología</h1>
+    <header className="sticky top-0 z-40 bg-umgBlue/95 backdrop-blur border-b border-white/10">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        {/* Logo / título */}
+        <Link to="/" className="no-underline">
+          <h1 className="m-0 text-white text-lg font-extrabold tracking-wide">
+             Congreso de Tecnología
+          </h1>
         </Link>
 
-        <nav style={{ display: "flex", gap: 8 }}>
-          <NavLink to="/" style={linkStyle} end>Inicio</NavLink>
-          <NavLink to="/register" style={linkStyle}>Inscripciones</NavLink>
-          <NavLink to="/results" style={linkStyle}>Resultados</NavLink>
-          <NavLink to="/faq" style={linkStyle}>FAQ</NavLink>
-          <NavLink to="/admin" style={linkStyle}>Admin</NavLink>
-          <NavLink to="/my-registrations" style={linkStyle}>
-             Mis inscripciones
-            </NavLink>
-          
-          <button
-          onClick={() => { localStorage.removeItem("adminKey"); window.location.href = "/"; }}
-          style={{ padding:"6px 10px", borderRadius:8, border:"1px solid #ddd", background:"#fff" }}
+        {/* Navegación */}
+        <nav className="flex items-center gap-2">
+          <NavLink to="/" className={linkCls} end>
+            Inicio
+          </NavLink>
+          <NavLink to="/register" className={linkCls}>
+            Inscripciones
+          </NavLink>
+          <NavLink to="/results" className={linkCls}>
+            Resultados
+          </NavLink>
+          <NavLink to="/faq" className={linkCls}>
+            FAQ
+          </NavLink>
+          <NavLink to="/my-registrations" className={linkCls}>
+            Mis inscripciones
+          </NavLink>
+          <NavLink to="/admin" className={linkCls}>
+            Admin
+          </NavLink>
+
+          {isAdmin && (
+            <button
+              onClick={logout}
+              className="ml-1 px-3 py-2 rounded-xl border border-white/30 text-white/90 hover:bg-white/10"
+              title="Cerrar sesión de administrador"
             >
-            Salir
-          </button>
-
-
+              Salir
+            </button>
+          )}
         </nav>
       </div>
     </header>
   );
 }
+
 
 //<NavLink to="/staff/checkin" style={linkStyle}>Check-in</NavLink>
 

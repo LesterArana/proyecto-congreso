@@ -1,23 +1,15 @@
+// src/components/Footer.js
 export default function Footer() {
+  const year = new Date().getFullYear();
+
   return (
-    <footer style={{ borderTop: "1px solid #eee", background: "#fafafa", marginTop: 48 }}>
-      <div
-        style={{
-          maxWidth: 1100,
-          margin: "0 auto",
-          padding: "16px 24px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 8,
-          textAlign: "center",
-        }}
-      >
-        <p style={{ margin: 0, fontSize: 14, color: "#555" }}>
-          © {new Date().getFullYear()} Congreso de Tecnología
+    <footer className="mt-16 bg-umgBlue text-white border-t border-white/20">
+      <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col items-center text-center gap-2">
+        <p className="m-0 text-sm">
+          © {year} <b>Congreso de Tecnología</b> — Universidad Mariano Gálvez
         </p>
-        <p style={{ margin: 0, fontSize: 13, color: "#777" }}>
-          Desarrollado con ❤️ para el área de análisis, diseño y desarrollo
+        <p className="m-0 text-xs text-white/80">
+          Desarrollado con ❤️ para el área de Análisis, Diseño y Desarrollo
         </p>
       </div>
     </footer>

@@ -1,3 +1,4 @@
+// client/src/pages/AdminLogin.js
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
@@ -14,7 +15,6 @@ export default function AdminLogin() {
     if (!k) return setMsg("Ingresa la clave de administración");
 
     try {
-      // probar clave
       const res = await api.get("/admin/ping", {
         headers: { "x-admin-key": k },
       });
@@ -30,22 +30,44 @@ export default function AdminLogin() {
   };
 
   return (
-    <div style={{ maxWidth: 420, margin: "0 auto", padding: 16 }}>
-      <h2>Acceso administrador</h2>
-      <form onSubmit={submit} style={{ display: "grid", gap: 8, marginTop: 12 }}>
-        <input
-          type="password"
-          placeholder="Clave de admin"
-          value={key}
-          onChange={e => setKey(e.target.value)}
-          style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd" }}
-          autoFocus
-        />
-        <button type="submit" style={{ background:"#2563eb", color:"#fff", border:"none", borderRadius:8, padding:"8px 12px" }}>
-          Entrar
-        </button>
-      </form>
-      {msg && <p style={{ color:"crimson", marginTop: 8 }}>{msg}</p>}
+    <div className="min-h-screen bg-umgBlue flex items-center justify-center">
+      <div className="bg-white text-slate-800 rounded-2xl shadow-xl border border-white/20 p-8 w-[90%] max-w-md">
+        <h2 className="text-2xl font-bold text-center text-umgBlue mb-2">
+          Acceso administrador
+        </h2>
+        <p className="text-center text-slate-500 text-sm mb-6">
+          Ingrese la clave de administración para acceder al panel.
+        </p>
+
+        <form onSubmit={submit} className="grid gap-4">
+          <input
+            type="password"
+            placeholder="Clave de admin"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            className="rounded-xl border border-slate-300 px-4 py-2 focus:ring-umgBlue focus:border-umgBlue outline-none"
+            autoFocus
+          />
+          <button
+            type="submit"
+            className="rounded-xl bg-umgBlue text-white font-semibold py-2 hover:brightness-105 transition"
+          >
+            Entrar
+          </button>
+        </form>
+
+        {msg && (
+          <p
+            className={`mt-4 text-center font-medium ${
+              msg.includes("inválida")
+                ? "text-rose-600"
+                : "text-emerald-600"
+            }`}
+          >
+            {msg}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

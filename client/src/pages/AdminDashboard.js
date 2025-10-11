@@ -7,31 +7,11 @@ function CardLink({ to, emoji, title, desc }) {
   return (
     <Link
       to={to}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        padding: 16,
-        background: "#f9fafb",
-        border: "1px solid #eee",
-        borderRadius: 12,
-        textDecoration: "none",
-        color: "#111",
-        boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-        transition: "transform .15s ease, box-shadow .15s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 6px 14px rgba(0,0,0,0.12)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.06)";
-      }}
+      className="flex flex-col gap-2 p-5 bg-white/90 border border-slate-200 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-slate-800 no-underline"
     >
-      <div style={{ fontSize: 28 }}>{emoji}</div>
-      <div style={{ fontWeight: 700, fontSize: 16 }}>{title}</div>
-      <div style={{ color: "#6b7280", fontSize: 14 }}>{desc}</div>
+      <div className="text-3xl">{emoji}</div>
+      <div className="font-bold text-lg text-umgBlue">{title}</div>
+      <div className="text-slate-500 text-sm">{desc}</div>
     </Link>
   );
 }
@@ -54,84 +34,85 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 20 }}>
-      <h2 style={{ marginBottom: 6 }}>Panel de Administración</h2>
-      <p style={{ marginBottom: 18, color: "#374151" }}>
-        Desde aquí puedes gestionar check-ins, inscripciones, reportes, diplomas y resultados.
-      </p>
+    <div className="min-h-screen bg-umgBlue text-white">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="bg-white text-slate-800 rounded-3xl shadow-lg border border-white/20 p-8">
+          <h2 className="text-3xl font-bold text-umgBlue mb-2">
+            Panel de Administración
+          </h2>
+          <p className="text-slate-600 mb-6">
+            Desde aquí puedes gestionar check-ins, inscripciones, reportes,
+            diplomas y resultados del Congreso de Tecnología.
+          </p>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 16,
-          marginBottom: 24,
-        }}
-      >
-        <CardLink
-          to="/checkin"
-          emoji="🎥"
-          title="Check-in"
-          desc="Escanea códigos QR para registrar asistencia."
-        />
-        {/* 👇 aquí estaba /admin, lo cambiamos a /admin/activities */}
-        <CardLink
-          to="/admin/activities"
-          emoji="📋"
-          title="Inscripciones"
-          desc="Revisa inscripciones por actividad."
-        />
-        <CardLink
-          to="/admin/reports"
-          emoji="📊"
-          title="Reportes"
-          desc="Asistencias y descarga de CSV."
-        />
-        <CardLink
-          to="/admin/diplomas"
-          emoji="🏆"
-          title="Diplomas"
-          desc="Generar en lote y enviar por correo."
-        />
-        <CardLink
-          to="/admin/winners"
-          emoji="🥇"
-          title="Resultados"
-          desc="Gestiona ganadores y publicaciones."
-        />
-      </div>
+          {/* Tarjetas principales */}
+          <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+            <CardLink
+              to="/checkin"
+              emoji="🎥"
+              title="Check-in"
+              desc="Escanea códigos QR para registrar asistencia."
+            />
+            <CardLink
+              to="/admin/activities"
+              emoji="📋"
+              title="Inscripciones"
+              desc="Revisa y administra actividades e inscripciones."
+            />
+            <CardLink
+              to="/admin/reports"
+              emoji="📊"
+              title="Reportes"
+              desc="Genera reportes de asistencia y exporta CSV."
+            />
+            <CardLink
+              to="/admin/diplomas"
+              emoji="🏆"
+              title="Diplomas"
+              desc="Genera y envía diplomas en lote por correo."
+            />
+            <CardLink
+              to="/admin/winners"
+              emoji="🥇"
+              title="Resultados"
+              desc="Gestiona ganadores y publicaciones oficiales."
+            />
+          </div>
 
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #eee",
-          borderRadius: 12,
-          padding: 16,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <span style={{ fontSize: 18 }}>⚡</span>
-          <h3 style={{ margin: 0, fontSize: 18 }}>Accesos rápidos a actividades</h3>
+          {/* Accesos rápidos */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-xl">⚡</span>
+              <h3 className="text-xl font-semibold text-umgBlue m-0">
+                Accesos rápidos a actividades
+              </h3>
+            </div>
+
+            {loadingActs ? (
+              <div className="text-slate-500">Cargando actividades…</div>
+            ) : activities.length === 0 ? (
+              <div className="text-slate-500">
+                No hay actividades registradas aún.
+              </div>
+            ) : (
+              <ul className="list-disc list-inside text-slate-700 leading-relaxed">
+                {activities.slice(0, 6).map((a) => (
+                  <li key={a.id}>
+                    <Link
+                      to={`/admin/activity/${a.id}`}
+                      className="text-umgBlue font-medium hover:underline"
+                    >
+                      #{a.id} — {a.title}
+                    </Link>{" "}
+                    <span className="text-slate-500 text-sm">
+                      ({new Date(a.date).toLocaleString()})
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
-
-        {loadingActs ? (
-          <div style={{ color: "#6b7280" }}>Cargando actividades…</div>
-        ) : activities.length === 0 ? (
-          <div style={{ color: "#6b7280" }}>No hay actividades registradas aún.</div>
-        ) : (
-          <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.9 }}>
-            {activities.slice(0, 6).map((a) => (
-              <li key={a.id}>
-                <Link to={`/admin/activity/${a.id}`}>
-                  #{a.id} — {a.title}
-                </Link>{" "}
-                <span style={{ color: "#6b7280", fontSize: 13 }}>
-                  ({new Date(a.date).toLocaleString()})
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
     </div>
   );

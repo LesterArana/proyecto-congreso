@@ -1,3 +1,4 @@
+// client/src/pages/AdminActivities.js
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { Link, useNavigate } from "react-router-dom";
@@ -34,18 +35,23 @@ export default function AdminActivities() {
   const load = () => {
     setLoading(true);
     setMsg(null);
-    api.get("/activities")
-      .then(res => setItems(res.data || []))
-      .catch(err => {
+    api
+      .get("/activities")
+      .then((res) => setItems(res.data || []))
+      .catch((err) => {
         const st = err?.response?.status;
-        const text = err?.response?.data?.message || "Error cargando actividades";
+        const text =
+          err?.response?.data?.message || "Error cargando actividades";
         setMsg(text);
         if (st === 401) navigate("/admin-login", { replace: true });
       })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []); // eslint-disable-line
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resetForm = () => {
     setEditing(null);
@@ -65,11 +71,11 @@ export default function AdminActivities() {
     // convertir datetime-local a ISO
     const isoDate = new Date(form.date).toISOString();
     const payload = {
-      kind: form.kind.trim(),
+      kind: form.kind.trim(), // "TALLER" | "COMPETENCIA"
       title: form.title.trim(),
       description: form.description?.trim() || "",
       date: isoDate,
-      capacity: Number(form.capacity),
+      capacity: Number(form.capacity), // 👈 asegurar número
     };
 
     try {
@@ -77,12 +83,17 @@ export default function AdminActivities() {
         await api.put(`/admin/activities/${editing.id}`, payload);
         setMsg("Actividad actualizada.");
       } else {
-       await api.post(`/admin/activities`, payload);
+        await api.post(`/admin/activities`, payload);
         setMsg("Actividad creada.");
       }
       resetForm();
       load();
     } catch (err) {
+      console.log(
+        "ERROR GUARDANDO:",
+        err?.response?.status,
+        err?.response?.data
+      );
       const st = err?.response?.status;
       const text = err?.response?.data?.message || "Error guardando actividad";
       setMsg(text);
@@ -105,7 +116,7 @@ export default function AdminActivities() {
   const onDelete = async (a) => {
     if (!window.confirm(`¿Eliminar actividad "${a.title}"?`)) return;
     try {
-      await api.delete(`/activities/${a.id}`);
+      await api.delete(`/admin/activities/${a.id}`); // <- consistente con POST/PUT
       setMsg("Actividad eliminada.");
       if (editing?.id === a.id) resetForm();
       load();
@@ -117,123 +128,190 @@ export default function AdminActivities() {
     }
   };
 
-  if (loading) return <div style={{ padding: 16 }}>Cargando…</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 p-4">
+        Cargando…
+      </div>
+    );
 
   return (
-    <div style={{ maxWidth: 980, margin: "0 auto", padding: 16 }}>
-      <h2>Administrar actividades</h2>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-6">
+          <h2 className="text-2xl font-bold text-umgBlue">
+            Administrar actividades
+          </h2>
+          <p className="text-slate-600">Crea, edita y elimina talleres o competencias.</p>
 
-      {msg && (
-        <div style={{ margin: "8px 0", padding: 10, borderRadius: 8, background: "#fef3c7", color: "#92400e" }}>
-          {msg}
-        </div>
-      )}
+          {msg && (
+            <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2">
+              {msg}
+            </div>
+          )}
 
-      {/* Formulario crear/editar */}
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 8, border: "1px solid #eee", padding: 12, borderRadius: 10 }}>
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>Tipo</label>
-<select
-  value={form.kind}
-  onChange={(e) => setForm({ ...form, kind: e.target.value })}
-  style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd" }}
-  required
+          {/* Formulario crear/editar */}
+          <form
+  onSubmit={onSubmit}
+  className="mt-6 bg-white border border-slate-200 rounded-2xl shadow-soft p-5 space-y-4"
 >
-  <option value="">-- Selecciona --</option>
-  <option value="TALLER">Taller</option>
-  <option value="COMPETENCIA">Competencia</option>
-</select>
+  {/* Tipo */}
+  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+    <label className="block text-sm font-semibold text-slate-700">Tipo</label>
+    <select
+      className="mt-2 block w-full rounded-xl border-slate-300 bg-white focus:border-umgBlue focus:ring-umgBlue"
+      value={form.kind}
+      onChange={(e) => setForm({ ...form, kind: e.target.value })}
+      required
+    >
+      <option value="">-- Selecciona --</option>
+      <option value="TALLER">Taller</option>
+      <option value="COMPETENCIA">Competencia</option>
+    </select>
+  </div>
 
-        </div>
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>Título</label>
-          <input
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd" }}
-            required
-          />
-        </div>
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>Descripción</label>
-          <textarea
-            rows={3}
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd" }}
-          />
-        </div>
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>Fecha y hora</label>
-          <input
-            type="datetime-local"
-            value={form.date}
-            onChange={(e) => setForm({ ...form, date: e.target.value })}
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd" }}
-            required
-          />
-        </div>
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>Cupos</label>
-          <input
-            type="number"
-            min={1}
-            value={form.capacity}
-            onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #ddd", width: 140 }}
-            required
-          />
-        </div>
+  {/* Título */}
+  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+    <label className="block text-sm font-semibold text-slate-700">Título</label>
+    <input
+      className="mt-2 block w-full rounded-xl border-slate-300 bg-white focus:border-umgBlue focus:ring-umgBlue"
+      value={form.title}
+      onChange={(e) => setForm({ ...form, title: e.target.value })}
+      required
+    />
+  </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="submit" style={{ background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "8px 12px" }}>
-            {editing ? "Guardar cambios" : "Crear actividad"}
-          </button>
-          {editing && (
-            <button type="button" onClick={resetForm} style={{ border: "1px solid #ddd", borderRadius: 8, padding: "8px 12px", background: "#fff" }}>
-              Cancelar edición
-            </button>
-          )}
-        </div>
-      </form>
+  {/* Descripción */}
+  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+    <label className="block text-sm font-semibold text-slate-700">Descripción</label>
+    <textarea
+      rows={3}
+      className="mt-2 block w-full rounded-xl border-slate-300 bg-white focus:border-umgBlue focus:ring-umgBlue"
+      value={form.description}
+      onChange={(e) => setForm({ ...form, description: e.target.value })}
+    />
+  </div>
 
-      {/* Lista */}
-      <h3 style={{ marginTop: 16 }}>Lista de actividades</h3>
-      <table width="100%" cellPadding={8} style={{ borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ background: "#f3f4f6" }}>
-            <th align="left">ID</th>
-            <th align="left">Tipo</th>
-            <th align="left">Título</th>
-            <th align="left">Fecha</th>
-            <th align="left">Cupos</th>
-            <th align="left">Inscritos</th>
-            <th align="left">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map(a => (
-            <tr key={a.id} style={{ borderTop: "1px solid #eee" }}>
-              <td>{a.id}</td>
-              <td>{a.kind}</td>
-              <td>{a.title}</td>
-              <td>{new Date(a.date).toLocaleString()}</td>
-              <td>{a.capacity}</td>
-              <td>{a._count?.registrations ?? 0}</td>
-              <td style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => onEdit(a)} style={{ padding: "4px 8px" }}>Editar</button>
-                <button onClick={() => onDelete(a)} style={{ padding: "4px 8px", color: "#b91c1c" }}>Eliminar</button>
-                <Link to={`/admin/activity/${a.id}`} style={{ padding: "4px 8px" }}>
-                  Ver inscripciones
-                </Link>
-              </td>
-            </tr>
-          ))}
-          {items.length === 0 && (
-            <tr><td colSpan={7} align="center" style={{ color: "#6b7280" }}>No hay actividades</td></tr>
-          )}
-        </tbody>
-      </table>
+  {/* Fecha y cupos (dos columnas) */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <label className="block text-sm font-semibold text-slate-700">Fecha y hora</label>
+      <input
+        type="datetime-local"
+        className="mt-2 block w-full rounded-xl border-slate-300 bg-white focus:border-umgBlue focus:ring-umgBlue"
+        value={form.date}
+        onChange={(e) => setForm({ ...form, date: e.target.value })}
+        required
+      />
+    </div>
+
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <label className="block text-sm font-semibold text-slate-700">Cupos</label>
+      <input
+        type="number"
+        min={1}
+        className="mt-2 block w-full rounded-xl border-slate-300 bg-white focus:border-umgBlue focus:ring-umgBlue"
+        value={form.capacity}
+        onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })}
+        required
+      />
+    </div>
+  </div>
+
+  {/* Acciones */}
+  <div className="flex flex-wrap gap-3">
+    <button
+      type="submit"
+      className="inline-flex items-center rounded-xl bg-umgBlue text-white px-4 py-2 font-semibold hover:brightness-105"
+    >
+      {editing ? "Guardar cambios" : "Crear actividad"}
+    </button>
+    {editing && (
+      <button
+        type="button"
+        onClick={resetForm}
+        className="inline-flex items-center rounded-xl border px-4 py-2 hover:bg-slate-50"
+      >
+        Cancelar edición
+      </button>
+    )}
+  </div>
+</form>
+
+          {/* Lista */}
+          <h3 className="text-xl font-bold mt-8">Lista de actividades</h3>
+          <div className="mt-3 bg-white border border-slate-200 rounded-2xl shadow-soft overflow-hidden">
+            <table className="min-w-full">
+              <thead className="bg-slate-50 text-slate-700">
+                <tr>
+                  <th className="px-4 py-2 text-left">ID</th>
+                  <th className="px-4 py-2 text-left">Tipo</th>
+                  <th className="px-4 py-2 text-left">Título</th>
+                  <th className="px-4 py-2 text-left">Fecha</th>
+                  <th className="px-4 py-2 text-left">Cupos</th>
+                  <th className="px-4 py-2 text-left">Inscritos</th>
+                  <th className="px-4 py-2 text-left">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((a) => {
+                  const inscritos =
+                    a._count?.registration ?? a._count?.registrations ?? 0; // 👈 fallback seguro
+                  return (
+                    <tr key={a.id} className="border-t">
+                      <td className="px-4 py-2">{a.id}</td>
+                      <td className="px-4 py-2">{a.kind}</td>
+                      <td className="px-4 py-2">{a.title}</td>
+                      <td className="px-4 py-2">
+                        {new Date(a.date).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2">{a.capacity}</td>
+                      <td className="px-4 py-2">{inscritos}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => onEdit(a)}
+                            className="inline-flex items-center rounded-xl border px-3 py-1.5 hover:bg-slate-50"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => onDelete(a)}
+                            className="inline-flex items-center rounded-xl bg-red-600 text-white px-3 py-1.5 hover:brightness-105"
+                          >
+                            Eliminar
+                          </button>
+                          <Link
+                            to={`/admin/activity/${a.id}`}
+                            className="inline-flex items-center rounded-xl border px-3 py-1.5 hover:bg-slate-50"
+                          >
+                            Ver inscripciones
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {items.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-4 py-6 text-slate-500 text-center"
+                    >
+                      No hay actividades
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-xs text-slate-500 mt-3">
+            Si aparece error 401, confirma que el interceptor de Axios envíe el
+            header <code>x-admin-key</code>.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

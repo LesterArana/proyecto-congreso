@@ -1,30 +1,30 @@
 // client/src/components/SpeakerCard.js
 export default function SpeakerCard({ s }) {
-  const card = { border: "1px solid #eee", borderRadius: 12, padding: 12, background: "#fff" };
-
   return (
-    <div style={card}>
-      <div style={{ display: "flex", gap: 12 }}>
+    <div className="border border-slate-200 rounded-2xl bg-white shadow-sm p-4 hover:shadow-md transition">
+      <div className="flex gap-4 items-start">
         {s.photo ? (
           <img
             src={s.photo}
             alt={s.name}
-            style={{ width: 90, height: 90, borderRadius: 10, objectFit: "cover" }}
+            className="w-24 h-24 rounded-xl object-cover border border-slate-200"
           />
         ) : (
-          <div style={{
-            width: 90, height: 90, borderRadius: 10, background: "#f3f4f6",
-            display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af"
-          }}>
+          <div className="w-24 h-24 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-sm">
             Sin foto
           </div>
         )}
 
-        <div>
-          <div style={{ fontWeight: 700 }}>{s.name}</div>
-          <div style={{ color: "#6b7280", fontSize: 13 }}>{s.role}</div>
-          <div style={{ marginTop: 6 }}><b>Charla:</b> {s.talk}</div>
-          {s.bio && <div style={{ marginTop: 6, fontSize: 14 }}>{s.bio}</div>}
+        <div className="flex-1 text-slate-800">
+          <div className="font-bold text-lg text-umgBlue">{s.name}</div>
+          <div className="text-slate-500 text-sm">{s.role}</div>
+          <div className="mt-2">
+            <b className="text-slate-700">Charla:</b>{" "}
+            <span className="text-slate-800">{s.talk}</span>
+          </div>
+          {s.bio && (
+            <div className="mt-2 text-slate-700 text-sm leading-snug">{s.bio}</div>
+          )}
         </div>
       </div>
     </div>
