@@ -5,8 +5,9 @@ export const api = axios.create({
 });
 
 // ==> Interceptor para adjuntar la clave admin si existe
+
 api.interceptors.request.use((config) => {
-  const adminKey = localStorage.getItem("adminKey");
-  if (adminKey) config.headers["x-admin-key"] = adminKey;
+  const k = localStorage.getItem("adminKey");
+  if (k) config.headers["x-admin-key"] = k; // 👈 manda la clave en TODAS las llamadas
   return config;
 });

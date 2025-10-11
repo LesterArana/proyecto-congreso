@@ -1,6 +1,8 @@
 // client/src/pages/AdminWinners.js
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
+import CameraCapture from "../components/CameraCapture";
+
 
 const emptyForm = {
   activityId: "",
@@ -19,6 +21,7 @@ export default function AdminWinners() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [showCam, setShowCam] = useState(false);
 
   // subida de imagen
   const [file, setFile] = useState(null);
@@ -347,90 +350,69 @@ export default function AdminWinners() {
                 />
               </div>
             </div>
+{/* 4) Foto y descripción */}
+<div>
+  <label className="font-semibold">Foto (URL o subida)</label>
 
-            {/* 4) Foto y descripción */}
-            <div>
-              <label className="font-semibold">Foto (URL o ruta pública)</label>
-              <input
-                type="text"
-                placeholder="https://…  o  /public/winners/archivo.jpg"
-                value={form.photoUrl}
-                onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
-                className="mt-1 rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
-              />
+  {/* URL directa */}
+  <input
+    type="text"
+    placeholder="https://…  o  /public/winners/archivo.jpg"
+    value={form.photoUrl}
+    onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
+    className="mt-1 rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
+  />
 
-              {/* Subir archivo (en móviles, 'capture' abre la cámara) */}
-              <div className="flex items-center gap-3 mt-2">
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  className="block"
-                />
-                <button
-                  type="button"
-                  onClick={uploadPhoto}
-                  disabled={!file || uploading}
-                  className={`rounded-xl px-4 py-2 font-semibold text-white ${
-                    !file || uploading
-                      ? "bg-slate-400 cursor-not-allowed"
-                      : "bg-sky-500 hover:brightness-105"
-                  }`}
-                  title="Subir imagen al servidor"
-                >
-                  {uploading ? "Subiendo..." : "Subir foto"}
-                </button>
-                {file && <small className="text-slate-500">{file.name}</small>}
-              </div>
-            </div>
+  {/* Subir archivo desde dispositivo */}
+  <div className="flex items-center gap-2 mt-2">
+    <input
+      type="file"
+      accept="image/*"
+      capture="environment"
+      onChange={(e) => setFile(e.target.files?.[0] || null)}
+      className="block"
+    />
+    <button
+      type="button"
+      onClick={uploadPhoto}
+      disabled={!file || uploading}
+      className={`rounded-xl px-3 py-2 text-white ${uploading ? "bg-slate-400" : "bg-sky-500 hover:brightness-105"}`}
+      title="Subir imagen al servidor"
+    >
+      {uploading ? "Subiendo..." : "Subir foto"}
+    </button>
 
-            <div>
-              <label className="font-semibold">Descripción (opcional)</label>
-              <textarea
-                rows={3}
-                placeholder="Motivo, categoría, equipo, etc."
-                value={form.description}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, description: e.target.value }))
-                }
-                className="mt-1 rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
-              />
-            </div>
+    {/* Abrir cámara en modal */}
+    <button
+      type="button"
+      onClick={() => setShowCam(true)}
+      className="rounded-xl px-3 py-2 border hover:bg-slate-50"
+    >
+      Usar cámara
+    </button>
+  </div>
 
-            {/* 5) Vista previa */}
-            {form.userId && (
-              <div className="border border-slate-200 rounded-2xl p-3">
-                <div className="font-semibold mb-2">Vista previa</div>
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-lg bg-slate-100 grid place-items-center overflow-hidden">
-                    {form.photoUrl ? (
-                      <img
-                        src={form.photoUrl}
-                        alt="preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-slate-500 text-xs">Sin foto</span>
-                    )}
-                  </div>
-                  <div className="text-sm">
-                    <div><b>Lugar:</b> {form.place}°</div>
-                    <div>
-                      <b>Actividad:</b>{" "}
-                      {activities.find((a) => String(a.id) === String(form.activityId))?.title || "-"}
-                    </div>
-                    <div>
-                      <b>Usuario:</b>{" "}
-                      {userOptions.find((u) => String(u.userId) === String(form.userId))?.name || "-"}
-                    </div>
-                    {form.description && (
-                      <div className="text-slate-700 mt-1">{form.description}</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+  {/* Vista previa rápida de la URL vigente */}
+  <div className="mt-3">
+    <div className="text-sm text-slate-600 mb-1">Vista previa:</div>
+    <div className="w-40 h-40 bg-slate-100 rounded-lg overflow-hidden grid place-items-center">
+      {form.photoUrl ? (
+        <img src={form.photoUrl} alt="preview" className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-slate-500 text-xs">Sin foto</span>
+      )}
+    </div>
+  </div>
+</div>
+
+{/* Modal de cámara */}
+{showCam && (
+  <CameraCapture
+    onUploaded={(url) => setForm((f) => ({ ...f, photoUrl: url }))}
+    onClose={() => setShowCam(false)}
+  />
+)}
+
 
             {/* 6) Acciones */}
             <div className="flex gap-2">

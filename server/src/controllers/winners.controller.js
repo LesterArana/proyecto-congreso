@@ -87,17 +87,17 @@ export async function createWinner(req, res) {
     ]);
 
     return res.status(201).json({
-      message: 'Ganador creado',
-      winner: {
-        id: w.id,
-        place: w.place,
-        description: w.description,
-        photoUrl: w.photoUrl,
-        createdAt: w.createdAt,
-        activity: act2,
-        user: usr2,
-      },
-    });
+  message: 'Ganador creado',
+  winner: {
+    id: w.id,
+    place: w.place,
+    description: w.description,
+    photoUrl: absPublicUrl(req, w.photoUrl), // ✅ ahora genera URL completa
+    createdAt: w.createdAt,
+    activity: act2,
+    user: usr2,
+  },
+});
   } catch (err) {
     console.error('createWinner error:', err);
     // expón un poco de detalle para depurar rápido en dev
@@ -135,6 +135,7 @@ export async function updateWinner(req, res) {
       }
     }
 
+    // Actualiza SOLO con los valores crudos
     const w = await prisma.winner.update({
       where: { id },
       data: {
@@ -145,12 +146,17 @@ export async function updateWinner(req, res) {
       include: { activity: true, user: true },
     });
 
-    return res.json({ message: 'Ganador actualizado', winner: mapWinner(w) });
+    // Decora la URL antes de responder
+    const resp = mapWinner(w);
+    resp.photoUrl = absPublicUrl(req, resp.photoUrl);
+
+    return res.json({ message: 'Ganador actualizado', winner: resp });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Error actualizando ganador' });
   }
 }
+
 
 /* =========================
  * Eliminar (ADMIN)
@@ -232,7 +238,7 @@ export async function listWinners(req, res) {
       id: w.id,
       place: w.place,
       description: w.description,
-      photoUrl: w.photoUrl,
+      photoUrl: absPublicUrl(req, w.photoUrl),
       createdAt: w.createdAt,
       activity: actMap.get(w.activityId) || null,
       user: userMap.get(w.userId) || null,
@@ -265,10 +271,19 @@ export async function listWinnersByActivity(req, res) {
 
     return res.json({
       activity: { id: activity.id, title: activity.title, date: activity.date },
-      items: winners.map(mapWinner),
+      items: winners.map(w => ({
+  ...mapWinner(w),
+  photoUrl: absPublicUrl(req, w.photoUrl), })),
     });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Error listando ganadores por actividad' });
   }
+}
+
+function absPublicUrl(req, url) {
+  if (!url) return url;
+  if (!url.startsWith("/public")) return url;
+  const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
+  return base + url;
 }
