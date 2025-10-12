@@ -9,9 +9,13 @@ import {
 
 const router = Router();
 
-// ✅ Todo el módulo de reportes protegido para admin autenticado (JWT)
+// Todo el módulo protegido
 router.get('/attendance', requireAuthAdmin, attendanceSummary);
-router.get('/attendance/activities/:id', requireAuthAdmin, attendanceByActivity);
+
+// ⚠️ CSV PRIMERO
 router.get('/attendance/activities/:id.csv', requireAuthAdmin, attendanceByActivityCsv);
+
+// Detalle JSON con id numérico únicamente
+router.get('/attendance/activities/:id(\\d+)', requireAuthAdmin, attendanceByActivity);
 
 export default router;

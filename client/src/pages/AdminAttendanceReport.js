@@ -22,6 +22,43 @@ export default function AdminAttendanceReport() {
     }
   }
 
+
+async function handleDownloadCsv(activityId) {
+  try {
+    const res = await api.get(
+      `/reports/attendance/activities/${activityId}.csv`,
+      { responseType: "arraybuffer" } // <- mejor que "blob"
+    );
+
+    // 1) filename desde el header (si viene)
+    let filename = `attendance_activity_${activityId}.csv`;
+    const dispo = res.headers["content-disposition"];
+    if (dispo) {
+      const m = /filename="?([^"]+)"?/i.exec(dispo);
+      if (m?.[1]) filename = m[1];
+    }
+
+    // 2) Agregar BOM para que Excel detecte UTF-8
+    const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
+    const blob = new Blob([bom, res.data], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    // 3) Disparar descarga
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("CSV download error:", err);
+    alert("No se pudo descargar el CSV.");
+  }
+}
+
   async function loadDetail() {
     if (!selectedId) return;
     setLoading(true);
@@ -82,12 +119,12 @@ export default function AdminAttendanceReport() {
                         >
                           Ver detalle
                         </button>
-                        <a
-                          href={`${api.defaults.baseURL}/reports/attendance/activities/${r.activityId}.csv`}
-                          className="inline-flex items-center rounded-xl border px-3 py-1.5 hover:bg-slate-50"
-                        >
-                          Descargar CSV
-                        </a>
+                        <button
+  onClick={() => handleDownloadCsv(r.activityId)}
+  className="inline-flex items-center rounded-xl border px-3 py-1.5 hover:bg-slate-50"
+>
+  Descargar CSV
+</button>
                       </div>
                     </td>
                   </tr>
