@@ -6,6 +6,9 @@ import { z } from 'zod';
 
 import { generateQrPng } from '../utils/qr.js';
 import { sendMail } from '../utils/mailer.js';
+import fs from "fs"; // si aún no lo importas
+import { buildConfirmationHtml } from "../emails/buildConfirmationHtml.js";
+
 
 const prisma = new PrismaClient();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -174,63 +177,96 @@ export const createRegistration = async (req, res, next) => {
       data: { userId: user.id, activityId: data.activityId, status: 'PENDING' },
     });
 
-    // =========================
-    // 6) Generar QR + enviar correo (robusto)
-    // =========================
-    let qrPublicPath = null;
-    let emailPreview = null;
-    let emailMode = null;
-    let emailError = null;
+   // =========================
+// 6) Generar QR + enviar correo (con diseño nuevo)
+// =========================
+let qrPublicPath = null;
+let emailPreview = null;
+let emailMode = null;
+let emailError = null;
 
-    try {
-      const payload = JSON.stringify({
-        regId: reg.id,
-        user: { id: user.id, name: user.name, email: user.email },
-        activity: { id: activity.id, title: activity.title, date: activity.date },
-        issuedAt: new Date().toISOString(),
-      });
+try {
+  const payload = JSON.stringify({
+    regId: reg.id,
+    user: { id: user.id, name: user.name, email: user.email },
+    activity: { id: activity.id, title: activity.title, date: activity.date },
+    issuedAt: new Date().toISOString(),
+  });
 
-      const fileName = `reg-${reg.id}.png`;
+  const fileName = `reg-${reg.id}.png`;
 
-      // Genera PNG y devuelve ruta pública "/qrs/reg-#.png"
-      qrPublicPath = await generateQrPng(payload, fileName);
+  // Genera PNG y devuelve ruta pública "/public/qrs/reg-#.png"
+  qrPublicPath = await generateQrPng(payload, fileName);
 
-      // Guardar ruta QR en DB
-      await prisma.registration.update({
-        where: { id: reg.id },
-        data: { qrCodePath: qrPublicPath },
-      });
+  // Guardar ruta QR en DB
+  await prisma.registration.update({
+    where: { id: reg.id },
+    data: { qrCodePath: qrPublicPath },
+  });
 
-      // Correo (usar ruta ABSOLUTA para el adjunto en Windows)
-      const when = new Date(activity.date).toLocaleString();
-      const html = `
-        <h2>Inscripción confirmada</h2>
-        <p>Hola <b>${user.name}</b>, tu inscripción fue creada para:</p>
-        <ul>
-          <li><b>Actividad:</b> ${activity.title}</li>
-          <li><b>Fecha y hora:</b> ${when}</li>
-        </ul>
-        <p>Adjuntamos tu <b>código QR</b>. También puedes abrirlo aquí: <a href="${qrPublicPath}">${qrPublicPath}</a></p>
-        <hr/>
-        <small>Congreso Tech</small>
-      `;
+  // Rutas absolutas para adjuntos (Windows-safe)
+  const qrAbsPath = path.resolve(__dirname, "..", "..", "public", "qrs", fileName);
 
-      const qrAbsPath = path.resolve(__dirname, '..', '..', 'public', 'qrs', fileName);
+  // (opcional) logo en /server/public/logo-umg.png
+  const logoPath = path.resolve(__dirname, "..", "..", "public", "logo-umg.jpg");
+  const hasLogo = fs.existsSync(logoPath);
 
-      const sent = await sendMail({
-        to: user.email,
-        subject: `Inscripción — ${activity.title}`,
-        html,
-        attachments: [{ filename: fileName, path: qrAbsPath, contentType: 'image/png' }],
-      });
+  // Fecha/hora legibles (evita GMT crudo)
+  const date = new Date(activity.date);
+  const dateStr = date.toLocaleDateString("es-GT", {
+    timeZone: "America/Guatemala",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "2-digit",
+  });
+  const timeStr = date.toLocaleTimeString("es-GT", {
+    timeZone: "America/Guatemala",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-      emailPreview = sent.preview || null;
-      emailMode = sent.mode || null;   // "smtp" | "ethereal" | "stream" | "error"
-      emailError = sent.error || null; // null si OK
-    } catch (auxErr) {
-      console.error('QR/Email error:', auxErr?.message || auxErr);
-      emailError = auxErr?.message || String(auxErr);
-    }
+  // Link del botón (puedes cambiarlo si tienes otra URL de confirmación)
+  const base = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
+  const link = `${base}${qrPublicPath}`; // p.ej. http://localhost:4000/public/qrs/reg-1.png
+
+  // HTML con el nuevo diseño
+  const html = buildConfirmationHtml({
+    fullName: user.name,
+    activity: {
+      title: activity.title,
+      dateStr,
+      timeStr, // o activity.hour ?? timeStr si manejas hour aparte
+      location: activity.location || "Por confirmar",
+    },
+    link,
+    hasLogo,
+  });
+
+  // Adjuntos con CIDs para que se vea en el HTML
+  const attachments = [
+    { filename: fileName, path: qrAbsPath, cid: "qrimage", contentType: "image/png" },
+  ];
+  if (hasLogo) {
+    attachments.push({ filename: "logo-umg.png", path: logoPath, cid: "umglogo" });
+  }
+
+  // Enviar
+  const sent = await sendMail({
+    to: user.email,
+    subject: `🎟 Confirmación de inscripción - ${activity.title}`,
+    html,
+    attachments,
+  });
+
+  emailPreview = sent.preview || null;
+  emailMode = sent.mode || null;   // "smtp" | "ethereal" | "stream" | "error"
+  emailError = sent.error || null; // null si OK
+} catch (auxErr) {
+  console.error("QR/Email error:", auxErr?.message || auxErr);
+  emailError = auxErr?.message || String(auxErr);
+}
+
 
     // 7) respuesta
     return res.status(201).json({
