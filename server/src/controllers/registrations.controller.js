@@ -14,9 +14,15 @@ const prisma = new PrismaClient();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // dominio institucional (si ya lo tienes declarado, reutilízalo)
-const INSTITUTE_DOMAIN = (process.env.INSTITUTION_DOMAIN || 'miumg.edu.gt').toLowerCase();
-const isInternalEmail = (email) => email.toLowerCase().endsWith(`@${INSTITUTE_DOMAIN}`);
+const INTERNAL_DOMAINS = (process.env.REACT_APP_INSTITUTION_DOMAINS || 'umg.edu.gt,miumg.edu.gt')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
 
+const isInternalEmail = (email) => {
+  const e = String(email || '').toLowerCase();
+  return INTERNAL_DOMAINS.some((d) => e.endsWith(`@${d}`));
+};
 
 
 /* =========================
