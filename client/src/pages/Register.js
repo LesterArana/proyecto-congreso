@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "../api";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 
 const INSTITUTE_DOMAIN = (process.env.REACT_APP_INSTITUTION_DOMAIN || "miumg.edu.gt").toLowerCase();
 const isInternalEmail = (email) => email?.toLowerCase().endsWith(`@${INSTITUTE_DOMAIN}`);
@@ -22,7 +22,18 @@ export default function Register() {
   const [msg, setMsg] = useState(null);
   const [resp, setResp] = useState(null);
   const [search] = useSearchParams();
+  const [logoError, setLogoError] = useState(false);
   const preId = search.get("activityId");
+
+  // Base pública robusta para archivos en /public (sirve en dev/prod)
+  const PUBLIC_BASE = useMemo(() => {
+    const fromEnv = process.env.REACT_APP_PUBLIC_BASE_URL;
+    if (fromEnv) return fromEnv.replace(/\/$/, "");
+    const fromApi = api?.defaults?.baseURL || "http://localhost:4000/api";
+    return fromApi.replace(/\/api\/?$/, "");
+  }, []);
+  // Cambia a .png si tu archivo real es PNG
+  const logoUrl = `${PUBLIC_BASE}/public/logo-umg.jpg`;
 
   const {
     register,
@@ -68,29 +79,52 @@ export default function Register() {
       // refrescar cupos
       api.get("/activities/summary").then((res) => setActivities(res.data || [])).catch(() => {});
     } catch (err) {
-      const text =
-        err?.response?.data?.message || "❌ Ocurrió un error al inscribirte. Intenta de nuevo.";
+      const text = err?.response?.data?.message || "❌ Ocurrió un error al inscribirte. Intenta de nuevo.";
       setMsg({ ok: false, text });
     }
   };
 
   const fieldCls =
-    "mt-1 block w-full rounded-xl border-slate-300 focus:border-umgBlue focus:ring-umgBlue";
+    "mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2 focus:border-umgBlue focus:ring-umgBlue outline-none";
   const labelCls = "block text-sm font-medium text-slate-700";
   const cardCls = "bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-6";
 
   return (
     <div className="min-h-screen bg-umgBlue text-white">
       <div className="max-w-xl mx-auto px-4 py-8">
-        <div className={cardCls}>
-          <h2 className="text-2xl font-bold text-umgBlue">Inscripción</h2>
-          <p className="text-slate-600">
-            Completa tus datos y elige una actividad disponible.
-          </p>
+        {/* Encabezado institucional */}
+        <section className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-6 mb-4">
+          <div className="flex items-center gap-4 md:gap-6">
+            {!logoError ? (
+              <img
+                src={logoUrl}
+                alt="Escudo UMG"
+                className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover border border-slate-200"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl border border-rose-300 bg-rose-50 text-rose-800 text-xs flex items-center justify-center p-2">
+                No se pudo cargar<br />/public/logo-umg.jpg
+              </div>
+            )}
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-500">
+                Universidad Mariano Gálvez de Guatemala
+              </div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-umgBlue m-0">
+                Inscripción a actividades
+              </h1>
+              <p className="text-slate-600 mt-1 mb-0">
+                Completa tus datos y elige una actividad disponible.
+              </p>
+            </div>
+          </div>
+        </section>
 
+        <div className={cardCls}>
           {/* Indicador de interno/externo según email */}
           {emailValue && (
-            <div className="mt-3">
+            <div className="mt-1 mb-3">
               {internal ? (
                 <span className="inline-block rounded-full text-xs px-3 py-1 bg-blue-50 text-blue-900 border border-blue-200">
                   Correo institucional detectado (INTERNAL)
@@ -103,7 +137,7 @@ export default function Register() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-2 space-y-4">
             {/* Nombre */}
             <div>
               <label className={labelCls}>Nombre</label>
@@ -113,9 +147,7 @@ export default function Register() {
                 placeholder="Tu nombre"
                 className={fieldCls}
               />
-              {errors.name && (
-                <small className="text-rose-600">{errors.name.message}</small>
-              )}
+              {errors.name && <small className="text-rose-600">{errors.name.message}</small>}
             </div>
 
             {/* Correo */}
@@ -127,9 +159,7 @@ export default function Register() {
                 placeholder={`tucorreo@${INSTITUTE_DOMAIN} o personal`}
                 className={fieldCls}
               />
-              {errors.email && (
-                <small className="text-rose-600">{errors.email.message}</small>
-              )}
+              {errors.email && <small className="text-rose-600">{errors.email.message}</small>}
             </div>
 
             {/* Teléfono */}
@@ -141,9 +171,7 @@ export default function Register() {
                 placeholder="Tu teléfono"
                 className={fieldCls}
               />
-              {errors.phone && (
-                <small className="text-rose-600">{errors.phone.message}</small>
-              )}
+              {errors.phone && <small className="text-rose-600">{errors.phone.message}</small>}
             </div>
 
             {/* School solo para externos */}
@@ -166,16 +194,11 @@ export default function Register() {
                 <option value="">-- Selecciona --</option>
                 {activities.map((a) => (
                   <option key={a.id} value={a.id} disabled={a.available === 0}>
-                    {a.kind}: {a.title} — {new Date(a.date).toLocaleString()} (Disp: {a.available}/
-                    {a.capacity})
+                    {a.kind}: {a.title} — {new Date(a.date).toLocaleString()} (Disp: {a.available}/{a.capacity})
                   </option>
                 ))}
               </select>
-              {errors.activityId && (
-                <small className="text-rose-600">
-                  {errors.activityId.message}
-                </small>
-              )}
+              {errors.activityId && <small className="text-rose-600">{errors.activityId.message}</small>}
             </div>
 
             {/* Botón enviar */}
@@ -183,9 +206,7 @@ export default function Register() {
               disabled={isSubmitting}
               type="submit"
               className={`inline-flex items-center rounded-xl px-4 py-2 font-semibold ${
-                isSubmitting
-                  ? "bg-slate-400 text-white cursor-not-allowed"
-                  : "bg-umgBlue text-white hover:brightness-105"
+                isSubmitting ? "bg-slate-400 text-white cursor-not-allowed" : "bg-umgBlue text-white hover:brightness-105"
               }`}
             >
               {isSubmitting ? "Enviando..." : "Inscribirme"}
@@ -207,7 +228,7 @@ export default function Register() {
 
           {/* Resumen de respuesta */}
           {resp && (
-            <div className="mt-4 rounded-xl border border-slate-200 p-4">
+            <div className="mt-4 rounded-2xl border border-slate-200 p-4">
               <p>
                 <b>Registro:</b> #{resp.registrationId}
               </p>
@@ -245,6 +266,12 @@ export default function Register() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Pie institucional */}
+        <div className="text-center text-white/80 text-xs mt-6">
+          © {new Date().getFullYear()} Universidad Mariano Gálvez de Guatemala — Congreso de Tecnología ·{" "}
+          <Link to="/faq" className="underline">Preguntas frecuentes</Link>
         </div>
       </div>
     </div>

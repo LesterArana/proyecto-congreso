@@ -3,19 +3,36 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 
 export default function AdminActivityDiplomas() {
-  const [activityId, setActivityId] = useState("");
+  const [activities, setActivities] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
   const [rows, setRows] = useState([]);
-  const [msg, setMsg] = useState(null); // { ok: boolean, text: string } | string | null
+  const [msg, setMsg] = useState(null);
   const [loading, setLoading] = useState(false);
   const [onlyAttended, setOnlyAttended] = useState(true);
 
-  // Carga inscripciones; si keepMsg=true no borra el mensaje actual
+  // ✅ usar endpoint público para el selector
+  async function loadActivities() {
+    setMsg(null);
+    try {
+      // puedes usar "/activities" o "/activities/summary"
+      const res = await api.get("/activities");
+      const list = (res.data || []).sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      );
+      setActivities(list);
+      if (list.length && !selectedId) setSelectedId(String(list[0].id));
+    } catch (e) {
+      setActivities([]);
+      setMsg({ ok: false, text: "No se pudieron cargar las actividades." });
+    }
+  }
+
   async function loadRegs({ keepMsg = false } = {}) {
-    if (!activityId) return;
+    if (!selectedId) return;
     setLoading(true);
     if (!keepMsg) setMsg(null);
     try {
-      const res = await api.get(`/activities/${activityId}/registrations`);
+      const res = await api.get(`/activities/${selectedId}/registrations`); // 🔒 requiere token (interceptor)
       setRows(res.data || []);
     } catch (e) {
       setMsg({
@@ -30,7 +47,7 @@ export default function AdminActivityDiplomas() {
   async function genOne(regId) {
     setLoading(true);
     try {
-      await api.post(`/diplomas/generate/${regId}`); // protegido por x-admin-key
+      await api.post(`/diplomas/generate/${regId}`); // 🔒 requiere token
       setMsg({ ok: true, text: `✅ Diploma generado para registro #${regId}.` });
       await loadRegs({ keepMsg: true });
     } catch (e) {
@@ -44,15 +61,15 @@ export default function AdminActivityDiplomas() {
   }
 
   async function genBulk() {
-    if (!activityId) {
-      setMsg({ ok: false, text: "Ingresa el ID de la actividad." });
+    if (!selectedId) {
+      setMsg({ ok: false, text: "Selecciona una actividad." });
       return;
     }
     setLoading(true);
     try {
       const res = await api.post(
-        `/diplomas/generate/activity/${activityId}?onlyAttended=${onlyAttended}`
-      );
+        `/diplomas/generate/activity/${selectedId}?onlyAttended=${onlyAttended}`
+      ); // 🔒 requiere token
       const c = res?.data?.counts || {};
       const processed = Number(c.processed || 0);
       const created = Number(c.created || 0);
@@ -78,20 +95,14 @@ export default function AdminActivityDiplomas() {
     } catch (e) {
       setMsg({
         ok: false,
-        text:
-          e?.response?.data?.error || "❌ Error generando diplomas en lote.",
+        text: e?.response?.data?.error || "❌ Error generando diplomas en lote.",
       });
     } finally {
       setLoading(false);
     }
   }
 
-  // Auto-ocultar mensaje después de 5s
-  useEffect(() => {
-    if (!msg) return;
-    const t = setTimeout(() => setMsg(null), 5000);
-    return () => clearTimeout(t);
-  }, [msg]);
+  useEffect(() => { loadActivities(); }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -101,18 +112,24 @@ export default function AdminActivityDiplomas() {
 
           {/* Controles superiores */}
           <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
-            <input
-              type="number"
-              placeholder="Activity ID"
-              value={activityId}
-              onChange={(e) => setActivityId(e.target.value)}
-              className="rounded-xl border border-slate-300 px-3 py-2 w-full sm:w-44 focus:ring-umgBlue focus:border-umgBlue outline-none"
-            />
+            <select
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              className="rounded-xl border border-slate-300 px-3 py-2 w-full sm:w-[360px] focus:ring-umgBlue focus:border-umgBlue outline-none"
+            >
+              <option value="">— Selecciona actividad —</option>
+              {activities.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.kind}: {a.title} ({new Date(a.date).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
+
             <button
               onClick={() => loadRegs()}
-              disabled={!activityId || loading}
+              disabled={!selectedId || loading}
               className={`rounded-xl px-4 py-2 font-semibold text-white ${
-                !activityId || loading
+                !selectedId || loading
                   ? "bg-slate-400 cursor-not-allowed"
                   : "bg-umgBlue hover:brightness-105"
               }`}
@@ -132,9 +149,9 @@ export default function AdminActivityDiplomas() {
 
             <button
               onClick={genBulk}
-              disabled={!activityId || loading}
+              disabled={!selectedId || loading}
               className={`rounded-xl px-4 py-2 font-semibold ml-0 sm:ml-auto ${
-                !activityId || loading
+                !selectedId || loading
                   ? "bg-slate-400 text-white cursor-not-allowed"
                   : "bg-umgBlue text-white hover:brightness-105"
               }`}
@@ -143,7 +160,6 @@ export default function AdminActivityDiplomas() {
             </button>
           </div>
 
-          {/* Mensaje global */}
           {msg && (
             <div
               className={`mt-4 rounded-xl px-3 py-2 ${
@@ -156,7 +172,6 @@ export default function AdminActivityDiplomas() {
             </div>
           )}
 
-          {/* Tabla de registros */}
           <div className="overflow-x-auto mt-4">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-slate-700">
@@ -205,10 +220,9 @@ export default function AdminActivityDiplomas() {
             </table>
           </div>
 
-          {/* Nota opcional */}
           <p className="text-xs text-slate-500 mt-3">
-            Consejo: si no aparecen inscripciones, confirma que el <code>x-admin-key</code> se esté enviando
-            vía tu interceptor de Axios y que el ID de actividad sea correcto.
+            Consejo: si no aparecen inscripciones, confirma que el header <code>Authorization:
+            Bearer &lt;token&gt;</code> se envía con Axios y que la actividad seleccionada es correcta.
           </p>
         </div>
       </div>

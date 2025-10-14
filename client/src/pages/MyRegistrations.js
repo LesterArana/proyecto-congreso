@@ -1,5 +1,4 @@
-// client/src/pages/MyRegistrations.js
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api } from "../api";
 
 /**
@@ -15,6 +14,17 @@ export default function MyRegistrations() {
   const [data, setData] = useState(null); // { registrations: [...] }
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [logoError, setLogoError] = useState(false);
+
+  // Base pública robusta para archivos en /public (funciona en dev/prod)
+  const PUBLIC_BASE = useMemo(() => {
+    const fromEnv = process.env.REACT_APP_PUBLIC_BASE_URL;
+    if (fromEnv) return fromEnv.replace(/\/$/, "");
+    const fromApi = api?.defaults?.baseURL || "http://localhost:4000/api";
+    return fromApi.replace(/\/api\/?$/, "");
+  }, []);
+  // Cambia a .png si tu archivo real es PNG
+  const logoUrl = `${PUBLIC_BASE}/public/logo-umg.jpg`;
 
   // Helper: consulta diploma por cada inscripción y devuelve arreglo enriquecido
   const attachDiplomas = async (registrations) => {
@@ -79,20 +89,50 @@ export default function MyRegistrations() {
   return (
     <div className="min-h-screen bg-umgBlue text-white">
       <div className="max-w-3xl mx-auto px-4 py-8">
+
+        {/* Encabezado institucional */}
+        <section className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-6 mb-4">
+          <div className="flex items-center gap-4 md:gap-6">
+            {!logoError ? (
+              <img
+                src={logoUrl}
+                alt="Escudo UMG"
+                className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover border border-slate-200"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl border border-rose-300 bg-rose-50 text-rose-800 text-xs flex items-center justify-center p-2">
+                No se pudo cargar<br />/public/logo-umg.jpg
+              </div>
+            )}
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-500">
+                Universidad Mariano Gálvez de Guatemala
+              </div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-umgBlue m-0">
+                Mis inscripciones
+              </h1>
+              <p className="text-slate-600 mt-1 mb-0">
+                Consulta tus actividades, QR y diplomas disponibles.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <div className={cardCls}>
-          <h2 className="text-2xl font-bold text-umgBlue">Mis inscripciones</h2>
+          {/* Form */}
+          <h2 className="text-xl font-bold text-umgBlue mb-2">Buscar por correo</h2>
           <p className="text-slate-600">
             Ingresa tu correo para ver tus actividades, QR y diplomas disponibles.
           </p>
 
-          {/* Form */}
           <form onSubmit={submit} className="mt-4 flex flex-col sm:flex-row gap-3">
             <input
               type="email"
               placeholder="tu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 rounded-xl border-slate-300 focus:border-umgBlue focus:ring-umgBlue"
+              className="flex-1 rounded-xl border border-slate-300 px-3 py-2 focus:border-umgBlue focus:ring-umgBlue outline-none"
             />
             <button
               type="submit"
@@ -186,6 +226,11 @@ export default function MyRegistrations() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Pie institucional */}
+        <div className="text-center text-white/80 text-xs mt-6">
+          © {new Date().getFullYear()} Universidad Mariano Gálvez de Guatemala — Congreso de Tecnología
         </div>
       </div>
     </div>
