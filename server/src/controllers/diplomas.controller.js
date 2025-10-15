@@ -1,7 +1,6 @@
 // server/src/controllers/diplomas.controller.js
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -14,6 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /* =========================================================
  * GET /api/diplomas/by-registration/:regId   (público)
+ *  - Devuelve 404 si no existe diploma aún
  * ========================================================= */
 export async function getDiplomaByRegistration(req, res) {
   try {
@@ -57,9 +57,12 @@ export async function generateDiplomaForRegistration(req, res) {
     });
     if (!reg) return res.status(404).json({ error: 'Inscripción no encontrada' });
 
+    // (Opcional) exigir asistencia:
+    // if (reg.status !== 'CHECKED_IN') return res.status(409).json({ error: 'Solo asistentes pueden recibir diploma' });
+
     // 1) Generar/actualizar PDF
     const fileName = `diploma-u${reg.userId}-a${reg.activityId}.pdf`;
-    const pdfRelPath = path.join('diplomas', fileName);        // guardado en /public/diplomas
+    const pdfRelPath = path.join('diplomas', fileName);        // /public/diplomas/...
     const pdfAbsPath = path.resolve(__dirname, '..', 'public', 'diplomas', fileName);
 
     const pdfBuffer = await generateDiplomaPDF({
@@ -68,6 +71,7 @@ export async function generateDiplomaForRegistration(req, res) {
       activityTitle: reg.activity.title,
       activityDate: reg.activity.date,
     });
+
     await writeFileEnsuringDir(pdfAbsPath, pdfBuffer);
 
     // upsert diploma
@@ -86,52 +90,30 @@ export async function generateDiplomaForRegistration(req, res) {
       });
     }
 
-    // 2) Enviar correo con DISEÑO NUEVO
+    // 2) Enviar correo con el PDF adjunto (usa el nuevo mailer)
     let emailError = null;
+    let emailMode = null;
+    let emailPreview = null;
     try {
-      const base = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
-      // asegurar ruta pública /public/...
-      const relPublic = pdfRelPath.startsWith('/public/')
-        ? pdfRelPath
-        : `/public/${pdfRelPath.replace(/^\/+/, '')}`;
-      const diplomaUrl = `${base}${relPublic}`;
-
-      // logo opcional
-      const logoPath = path.resolve(__dirname, '..', 'public', 'logo-umg.png');
-      const hasLogo = fs.existsSync(logoPath);
-
-      // fecha legible
-      const dateStr = new Date(reg.activity.date).toLocaleDateString('es-GT', {
-        timeZone: 'America/Guatemala',
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: '2-digit',
-      });
-
-      // HTML bonito
       const html = buildDiplomaHtml({
         fullName: reg.user.name,
-        activity: { title: reg.activity.title, dateStr, subtitle: 'Diploma de participación' },
-        diplomaUrl,
-        hasLogo,
+        activity: {
+          title: reg.activity.title,
+          date: reg.activity.date,
+        },
       });
 
-      // adjuntos (PDF + logo CID)
-      const attachments = [];
-      if (fs.existsSync(pdfAbsPath)) {
-        attachments.push({ filename: fileName, path: pdfAbsPath, contentType: 'application/pdf' });
-      }
-      if (hasLogo) {
-        attachments.push({ filename: 'logo-umg.png', path: logoPath, cid: 'umglogo' });
-      }
-
-      await sendMail({
+      const sent = await sendMail({
         to: reg.user.email,
-        subject: `📄 Tu diploma - ${reg.activity.title}`,
+        subject: `🎓 Diploma — ${reg.activity.title}`,
         html,
-        attachments,
+        attachments: [
+          { filename: fileName, path: pdfAbsPath, contentType: 'application/pdf' },
+        ],
       });
+      emailMode = sent.mode;
+      emailPreview = sent.preview || null;
+      emailError = sent.error || null;
     } catch (e) {
       console.error('✉️  Error enviando diploma:', e?.message || e);
       emailError = e?.message || String(e);
@@ -141,6 +123,8 @@ export async function generateDiplomaForRegistration(req, res) {
       message: 'Diploma generado',
       diploma: record,
       downloadUrl: toPublicUrl(record.pdfPath),
+      emailMode,
+      emailPreview,
       emailError,  // null si ok
     });
   } catch (err) {
@@ -186,8 +170,8 @@ export async function generateDiplomasForActivity(req, res) {
           activityTitle: reg.activity.title,
           activityDate: reg.activity.date,
         });
-        // 🔧 sustituimos Bun.write por tu helper robusto
-        await writeFileEnsuringDir(pdfAbsPath, pdfBuffer);
+
+        await writeFileEnsuringDir(pdfAbsPath, pdfBuffer); // ✅ reemplaza Bun.write
 
         const existing = await prisma.diploma.findFirst({
           where: { userId: reg.userId, activityId: reg.activityId },
@@ -205,48 +189,31 @@ export async function generateDiplomasForActivity(req, res) {
             data: { userId: reg.userId, activityId: reg.activityId, pdfPath: pdfRelPath },
           });
         }
+
         if (action === 'created') created++; else updated++;
 
         // Enviar email (no bloquear lote si falla)
         try {
-          const base = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
-          const relPublic = pdfRelPath.startsWith('/public/')
-            ? pdfRelPath
-            : `/public/${pdfRelPath.replace(/^\/+/, '')}`;
-          const diplomaUrl = `${base}${relPublic}`;
-
-          const logoPath = path.resolve(__dirname, '..', 'public', 'logo-umg.png');
-          const hasLogo = fs.existsSync(logoPath);
-
-          const dateStr = new Date(reg.activity.date).toLocaleDateString('es-GT', {
-            timeZone: 'America/Guatemala',
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: '2-digit',
-          });
-
           const html = buildDiplomaHtml({
             fullName: reg.user.name,
-            activity: { title: reg.activity.title, dateStr, subtitle: 'Diploma de participación' },
-            diplomaUrl,
-            hasLogo,
+            activity: {
+              title: reg.activity.title,
+              date: reg.activity.date,
+            },
           });
 
-          const attachments = [];
-          if (fs.existsSync(pdfAbsPath)) {
-            attachments.push({ filename: fileName, path: pdfAbsPath, contentType: 'application/pdf' });
-          }
-          if (hasLogo) {
-            attachments.push({ filename: 'logo-umg.jpg', path: logoPath, cid: 'umglogo' });
-          }
-
-          await sendMail({
+          const sent = await sendMail({
             to: reg.user.email,
-            subject: `📄 Tu diploma - ${reg.activity.title}`,
+            subject: `🎓 Diploma — ${reg.activity.title}`,
             html,
-            attachments,
+            attachments: [
+              { filename: fileName, path: pdfAbsPath, contentType: 'application/pdf' },
+            ],
           });
+
+          if (sent.error) {
+            errors.push({ regId: reg.id, emailError: sent.error });
+          }
         } catch (mailErr) {
           console.error(`✉️  Error email reg#${reg.id}:`, mailErr?.message || mailErr);
           errors.push({ regId: reg.id, emailError: mailErr?.message || String(mailErr) });
@@ -262,7 +229,7 @@ export async function generateDiplomasForActivity(req, res) {
     return res.json({
       message: 'Proceso de diplomas finalizado',
       counts: { processed, created, updated, skipped },
-      errors,
+      errors,   // para ver a quién no se le pudo enviar correo o PDF
     });
   } catch (err) {
     console.error('generateDiplomasForActivity:', err);
