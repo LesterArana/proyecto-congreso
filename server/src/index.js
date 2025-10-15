@@ -7,15 +7,9 @@ import { fileURLToPath } from "url";
 
 import apiRouter from "./routes/index.js";
 import authRoutes from "./routes/auth.routes.js";
-
-// ⬅️ OJO: ajusta el nombre del archivo según el tuyo real:
-
 import uploadsRoutes from "./routes/uploads.routes.js";
-
-
 import { errorHandler } from "./middlewares/error.middleware.js";
-
-import { requireAuth, requireAuthAdmin } from "./middlewares/auth.middleware.js";
+import { requireAuthAdmin } from "./middlewares/auth.middleware.js";
 
 const app = express();
 
@@ -30,6 +24,9 @@ app.use(express.json());
 // estáticos
 app.use("/public", express.static(PUBLIC_DIR));
 
+// health check (útil para Railway)
+app.get("/health", (_req, res) => res.json({ ok: true }));
+
 // auth (login, etc.)
 app.use("/api/auth", authRoutes);
 
@@ -42,8 +39,11 @@ app.use("/api", apiRouter);
 // manejador de errores (siempre al final)
 app.use(errorHandler);
 
+// 🔴 IMPORTANTE: PORT y HOST para PaaS
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`✅ API running on http://localhost:${PORT}`);
-  console.log(`📁 Static files: http://localhost:${PORT}/public`);
+const HOST = "0.0.0.0";
+
+app.listen(PORT, HOST, () => {
+  console.log(`✅ API running on http://${HOST}:${PORT}`);
+  console.log(`📁 Static files: http://${HOST}:${PORT}/public`);
 });
