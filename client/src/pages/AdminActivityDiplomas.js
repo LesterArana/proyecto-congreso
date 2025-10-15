@@ -1,44 +1,33 @@
-// client/src/pages/AdminActivityDiplomas.js
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 
 export default function AdminActivityDiplomas() {
-  const [activities, setActivities] = useState([]);
-  const [selectedId, setSelectedId] = useState("");
+  const [activityId, setActivityId] = useState("");
   const [rows, setRows] = useState([]);
   const [msg, setMsg] = useState(null);
   const [loading, setLoading] = useState(false);
   const [onlyAttended, setOnlyAttended] = useState(true);
+  const [activities, setActivities] = useState([]);
 
-  // ✅ usar endpoint público para el selector
-  async function loadActivities() {
-    setMsg(null);
+  const loadActivities = useCallback(async () => {
     try {
-      // puedes usar "/activities" o "/activities/summary"
       const res = await api.get("/activities");
-      const list = (res.data || []).sort(
-        (a, b) => new Date(a.date) - new Date(b.date)
-      );
-      setActivities(list);
-      if (list.length && !selectedId) setSelectedId(String(list[0].id));
-    } catch (e) {
+      setActivities(res.data || []);
+    } catch {
       setActivities([]);
-      setMsg({ ok: false, text: "No se pudieron cargar las actividades." });
+      setMsg({ ok: false, text: "No se pudieron cargar las actividades (admin)." });
     }
-  }
+  }, []);
 
   async function loadRegs({ keepMsg = false } = {}) {
-    if (!selectedId) return;
+    if (!activityId) return;
     setLoading(true);
     if (!keepMsg) setMsg(null);
     try {
-      const res = await api.get(`/activities/${selectedId}/registrations`); // 🔒 requiere token (interceptor)
+      const res = await api.get(`/activities/${activityId}/registrations`);
       setRows(res.data || []);
     } catch (e) {
-      setMsg({
-        ok: false,
-        text: e?.response?.data?.error || "Error cargando inscripciones.",
-      });
+      setMsg({ ok: false, text: e?.response?.data?.error || "Error cargando inscripciones." });
     } finally {
       setLoading(false);
     }
@@ -47,29 +36,24 @@ export default function AdminActivityDiplomas() {
   async function genOne(regId) {
     setLoading(true);
     try {
-      await api.post(`/diplomas/generate/${regId}`); // 🔒 requiere token
+      await api.post(`/diplomas/generate/${regId}`);
       setMsg({ ok: true, text: `✅ Diploma generado para registro #${regId}.` });
       await loadRegs({ keepMsg: true });
     } catch (e) {
-      setMsg({
-        ok: false,
-        text: e?.response?.data?.error || "❌ No se pudo generar el diploma.",
-      });
+      setMsg({ ok: false, text: e?.response?.data?.error || "❌ No se pudo generar el diploma." });
     } finally {
       setLoading(false);
     }
   }
 
   async function genBulk() {
-    if (!selectedId) {
+    if (!activityId) {
       setMsg({ ok: false, text: "Selecciona una actividad." });
       return;
     }
     setLoading(true);
     try {
-      const res = await api.post(
-        `/diplomas/generate/activity/${selectedId}?onlyAttended=${onlyAttended}`
-      ); // 🔒 requiere token
+      const res = await api.post(`/diplomas/generate/activity/${activityId}?onlyAttended=${onlyAttended}`);
       const c = res?.data?.counts || {};
       const processed = Number(c.processed || 0);
       const created = Number(c.created || 0);
@@ -82,98 +66,91 @@ export default function AdminActivityDiplomas() {
           text: `✅ Diplomas creados/actualizados: ${created + updated}. (procesados=${processed}, nuevos=${created}, actualizados=${updated}, omitidos=${skipped})`,
         });
       } else {
-        const reason = onlyAttended
-          ? "No hay asistentes registrados para esta actividad."
-          : "No se encontró a quién generar.";
         setMsg({
           ok: false,
-          text: `⚠️ No se generó ningún diploma. ${reason} (procesados=${processed}, omitidos=${skipped})`,
+          text: `⚠️ No se generó ningún diploma. ${onlyAttended ? "No hay asistentes." : "No se encontró a quién generar."} (procesados=${processed}, omitidos=${skipped})`,
         });
       }
-
       await loadRegs({ keepMsg: true });
     } catch (e) {
-      setMsg({
-        ok: false,
-        text: e?.response?.data?.error || "❌ Error generando diplomas en lote.",
-      });
+      setMsg({ ok: false, text: e?.response?.data?.error || "❌ Error generando diplomas en lote." });
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { loadActivities(); }, []);
+  useEffect(() => { loadActivities(); }, [loadActivities]);
+
+  // Auto-ocultar mensaje
+  useEffect(() => {
+    if (!msg) return;
+    const t = setTimeout(() => setMsg(null), 5000);
+    return () => clearTimeout(t);
+  }, [msg]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-6">
           <h2 className="text-2xl font-bold text-umgBlue">Diplomas por actividad (Admin)</h2>
 
-          {/* Controles superiores */}
-          <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             <select
-              value={selectedId}
-              onChange={(e) => setSelectedId(e.target.value)}
-              className="rounded-xl border border-slate-300 px-3 py-2 w-full sm:w-[360px] focus:ring-umgBlue focus:border-umgBlue outline-none"
+              value={activityId}
+              onChange={(e) => setActivityId(e.target.value)}
+              className="rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
             >
               <option value="">— Selecciona actividad —</option>
               {activities.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.kind}: {a.title} ({new Date(a.date).toLocaleDateString()})
+                  #{a.id} — {a.title} ({new Date(a.date).toLocaleString()})
                 </option>
               ))}
             </select>
 
-            <button
-              onClick={() => loadRegs()}
-              disabled={!selectedId || loading}
-              className={`rounded-xl px-4 py-2 font-semibold text-white ${
-                !selectedId || loading
-                  ? "bg-slate-400 cursor-not-allowed"
-                  : "bg-umgBlue hover:brightness-105"
-              }`}
-            >
-              {loading ? "Cargando..." : "Cargar"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => loadRegs()}
+                disabled={!activityId || loading}
+                className={`rounded-xl px-4 py-2 font-semibold text-white ${
+                  !activityId || loading ? "bg-slate-400 cursor-not-allowed" : "bg-umgBlue hover:brightness-105"
+                }`}
+              >
+                {loading ? "Cargando..." : "Cargar"}
+              </button>
 
-            <label className="inline-flex items-center gap-2 text-sm ml-0 sm:ml-2">
-              <input
-                type="checkbox"
-                checked={onlyAttended}
-                onChange={(e) => setOnlyAttended(e.target.checked)}
-                className="rounded border-slate-300"
-              />
-              Solo asistentes
-            </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={onlyAttended}
+                  onChange={(e) => setOnlyAttended(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                Solo asistentes
+              </label>
+            </div>
 
-            <button
-              onClick={genBulk}
-              disabled={!selectedId || loading}
-              className={`rounded-xl px-4 py-2 font-semibold ml-0 sm:ml-auto ${
-                !selectedId || loading
-                  ? "bg-slate-400 text-white cursor-not-allowed"
-                  : "bg-umgBlue text-white hover:brightness-105"
-              }`}
-            >
-              Generar diplomas (lote)
-            </button>
+            <div className="lg:ml-auto">
+              <button
+                onClick={genBulk}
+                disabled={!activityId || loading}
+                className={`w-full sm:w-auto rounded-xl px-4 py-2 font-semibold ${
+                  !activityId || loading ? "bg-slate-400 text-white cursor-not-allowed" : "bg-umgBlue text-white hover:brightness-105"
+                }`}
+              >
+                Generar diplomas (lote)
+              </button>
+            </div>
           </div>
 
           {msg && (
-            <div
-              className={`mt-4 rounded-xl px-3 py-2 ${
-                (typeof msg === "object" ? msg.ok : false)
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-rose-50 text-rose-700 border border-rose-200"
-              }`}
-            >
+            <div className={`mt-4 rounded-xl px-3 py-2 ${typeof msg === "object" && msg.ok ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
               {typeof msg === "string" ? msg : msg.text}
             </div>
           )}
 
-          <div className="overflow-x-auto mt-4">
-            <table className="min-w-full text-sm">
+          <div className="overflow-x-auto mt-4 rounded-2xl border border-slate-200">
+            <table className="min-w-[900px] w-full text-sm">
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
                   <th className="text-left px-3 py-2 border-b">RegID</th>
@@ -191,17 +168,13 @@ export default function AdminActivityDiplomas() {
                     <td className="px-3 py-2">{r.user?.name}</td>
                     <td className="px-3 py-2">{r.user?.email}</td>
                     <td className="px-3 py-2">{r.status}</td>
-                    <td className="px-3 py-2">
-                      {r.status === "CHECKED_IN" ? "Sí" : "No"}
-                    </td>
+                    <td className="px-3 py-2">{r.status === "CHECKED_IN" ? "Sí" : "No"}</td>
                     <td className="px-3 py-2">
                       <button
                         onClick={() => genOne(r.id)}
                         disabled={loading}
                         className={`inline-flex items-center rounded-xl px-3 py-1.5 font-medium ${
-                          loading
-                            ? "bg-slate-400 text-white cursor-not-allowed"
-                            : "bg-umgBlue text-white hover:brightness-105"
+                          loading ? "bg-slate-400 text-white cursor-not-allowed" : "bg-umgBlue text-white hover:brightness-105"
                         }`}
                       >
                         Generar diploma
@@ -221,8 +194,7 @@ export default function AdminActivityDiplomas() {
           </div>
 
           <p className="text-xs text-slate-500 mt-3">
-            Consejo: si no aparecen inscripciones, confirma que el header <code>Authorization:
-            Bearer &lt;token&gt;</code> se envía con Axios y que la actividad seleccionada es correcta.
+            Consejo: verifica que el token admin se envíe y que el ID de actividad sea correcto.
           </p>
         </div>
       </div>
