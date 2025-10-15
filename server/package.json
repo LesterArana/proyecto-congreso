@@ -6,17 +6,12 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "build": "echo 'no-build-js'",
-    "migrate:deploy": "prisma migrate deploy",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev --name init",
-    "prisma:studio": "prisma studio",
+    "generate": "npx prisma generate",
+    "migrate:deploy": "npx prisma migrate deploy",
     "seed": "node prisma/seed.js"
-  
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",
-    "prisma": "^6.15.0",           
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -27,7 +22,7 @@
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.2",
     "qrcode": "^1.5.4",
-    "zod": "^3.23.8"
-  },
-  "devDependencies": {}
+    "zod": "^3.23.8",
+    "prisma": "^6.15.0"
+  }
 }
