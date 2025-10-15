@@ -8,14 +8,16 @@
     "start": "node src/index.js",
     "build": "echo 'no-build-js'",
     "migrate:deploy": "prisma migrate deploy",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:studio": "prisma studio",
     "seed": "node prisma/seed.js",
-    "postinstall": "npx prisma generate"
+    "postinstall": "prisma generate || true"
   },
   "dependencies": {
-    "@prisma/client": "6.17.1",
-    "@sendgrid/mail": "^8.1.6",
-    "axios": "^1.12.2",
-    "bcryptjs": "3.0.2",
+    "@prisma/client": "^6.17.1",
+    "prisma": "^6.17.1",
+    "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
@@ -24,8 +26,9 @@
     "nodemailer": "^6.10.1",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.2",
-    "prisma": "6.17.1",
     "qrcode": "^1.5.4",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@sendgrid/mail": "^8.1.6",
+    "axios": "^1.12.2"
   }
 }
