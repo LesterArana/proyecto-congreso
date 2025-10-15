@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE || "http://localhost:4000/api",
+  baseURL: "https://proyecto-congreso-production.up.railway.app/api",
 });
 
 // Adjunta token si existe
@@ -26,3 +26,17 @@ api.interceptors.response.use(
     return Promise.reject(err);
   }
 );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
