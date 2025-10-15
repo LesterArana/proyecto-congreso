@@ -66,16 +66,7 @@ export function buildConfirmationHtml({ fullName, activity, link, hasLogo }) {
                     </td>
                   </tr>
 
-                  <tr>
-                    <td align="center" style="padding:18px 0 0;">
-                      <a href="${link}" style="background:#0a3a82;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:14px;display:inline-block;">
-                        Confirmar asistencia
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
+                  
 
             <tr>
               <td style="background:#f8fafc;padding:16px;text-align:center;">

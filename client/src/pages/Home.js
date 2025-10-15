@@ -1,3 +1,4 @@
+// client/src/pages/Home.js
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
@@ -32,59 +33,92 @@ export default function Home() {
     }
   }
 
-  useEffect(() => { loadAgenda(); loadSpeakers(); }, []);
+  useEffect(() => {
+    loadAgenda();
+    loadSpeakers();
+  }, []);
 
   return (
     <div className="min-h-screen bg-umgBlue text-white">
-      <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto w-full max-w-[1100px] px-4 sm:px-5 lg:px-8 py-6 sm:py-8">
         {/* HERO */}
-        <section className="rounded-2xl border border-white/20 shadow-soft p-6 bg-white/5 backdrop-blur-sm">
-          <div className="grid gap-6 md:grid-cols-2 items-center">
+        <section className="rounded-2xl border border-white/20 shadow-soft p-4 sm:p-6 bg-white/5 backdrop-blur-sm">
+          <div className="grid gap-5 md:grid-cols-2 md:items-center">
+            {/* Columna texto */}
             <div>
-              <h1 className="text-balance text-[clamp(1.5rem,2.5vw,2.25rem)] font-extrabold">
+              <h1 className="text-balance font-extrabold leading-tight
+                             text-[clamp(1.5rem,4.5vw,2.5rem)]">
                 Congreso de Tecnología — UMG
               </h1>
-              <p className="text-blue-100 mt-1">
+
+              <p className="text-blue-100 mt-2 sm:mt-3 text-[15px] sm:text-base">
                 Talleres, competencias y conferencias. Regístrate, recibe tu QR y obtén tu diploma.
               </p>
 
+              {/* Chips */}
               <div className="flex flex-wrap gap-2 mt-3">
-                <div className="bg-white/10 border border-white/20 rounded-lg px-3 py-2">📍 Campus Central</div>
-                <div className="bg-white/10 border border-white/20 rounded-lg px-3 py-2">📅 12–14 de noviembre</div>
-                <div className="bg-white/10 border border-white/20 rounded-lg px-3 py-2">🎓 Estudiantes y egresados</div>
+                <span className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm">
+                  📍 Campus Central
+                </span>
+                <span className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm">
+                  📅 12–14 de noviembre
+                </span>
+                <span className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm">
+                  🎓 Estudiantes y egresados
+                </span>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link to="/register" className="inline-flex items-center rounded-xl bg-white text-umgBlue px-4 py-2 font-semibold hover:brightness-95">
+              {/* CTA Buttons */}
+              <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <Link
+                  to="/register"
+                  className="inline-flex items-center justify-center w-full sm:w-auto rounded-xl bg-white text-umgBlue px-4 py-2.5 font-semibold hover:brightness-95"
+                >
                   Inscribirme
                 </Link>
-                <Link to="/results" className="inline-flex items-center rounded-xl bg-[--umg-red] text-white px-4 py-2 font-semibold hover:brightness-105">
+                <Link
+                  to="/results"
+                  className="inline-flex items-center justify-center w-full sm:w-auto rounded-xl bg-[--umg-red] text-white px-4 py-2.5 font-semibold hover:brightness-105"
+                >
                   Resultados
                 </Link>
               </div>
             </div>
 
-            <img
-              src="/public/banner.jpg"
-              alt="Congreso"
-              className="w-full rounded-2xl aspect-video object-cover"
-              loading="lazy"
-            />
+            {/* Columna imagen */}
+            <div className="overflow-hidden rounded-2xl border border-white/15">
+              {/* Si el banner está en client/public, usa "/banner.jpg" */}
+              <img
+                src="/public/logo-umg.jpg"
+                alt="Congreso"
+                className="w-full h-full object-cover block aspect-video"
+                loading="lazy"
+              />
+            </div>
           </div>
         </section>
 
         {/* AGENDA */}
         <section className="mt-6">
-          <div className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-6">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <h3 className="text-xl font-bold text-umgBlue m-0">Agenda</h3>
-              <button onClick={loadAgenda} className="inline-flex items-center rounded-xl border px-3 py-2 hover:bg-slate-50">
+          <div className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h3 className="text-lg sm:text-xl font-bold text-umgBlue m-0">Agenda</h3>
+              <button
+                onClick={loadAgenda}
+                className="inline-flex items-center rounded-xl border px-3 py-2 hover:bg-slate-50 text-sm sm:text-base"
+              >
                 Recargar
               </button>
             </div>
 
             {msgAgenda && (
-              <div className={`mt-3 rounded-xl px-3 py-2 ${msgAgenda.ok ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
+              <div
+                className={`mt-3 rounded-xl px-3 py-2 ${
+                  msgAgenda.ok
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-rose-50 text-rose-700 border border-rose-200"
+                }`}
+              >
                 {msgAgenda.text}
               </div>
             )}
@@ -101,21 +135,33 @@ export default function Home() {
 
         {/* PONENTES */}
         <section className="mt-6">
-          <div className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-6">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <h3 className="text-xl font-bold text-umgBlue m-0">Ponentes invitados</h3>
-              <button onClick={loadSpeakers} className="inline-flex items-center rounded-xl border px-3 py-2 hover:bg-slate-50">
+          <div className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h3 className="text-lg sm:text-xl font-bold text-umgBlue m-0">Ponentes invitados</h3>
+              <button
+                onClick={loadSpeakers}
+                className="inline-flex items-center rounded-xl border px-3 py-2 hover:bg-slate-50 text-sm sm:text-base"
+              >
                 Recargar
               </button>
             </div>
 
             {msgSpeakers && (
-              <div className={`mt-3 rounded-xl px-3 py-2 ${msgSpeakers.ok ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>
+              <div
+                className={`mt-3 rounded-xl px-3 py-2 ${
+                  msgSpeakers.ok
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-rose-50 text-rose-700 border border-rose-200"
+                }`}
+              >
                 {msgSpeakers.text}
               </div>
             )}
 
-            <div className="mt-3 grid gap-3 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
+            <div className="mt-3 grid gap-3
+                            grid-cols-1
+                            sm:grid-cols-2
+                            lg:grid-cols-3">
               {speakers.length > 0 ? (
                 speakers.map((s) => <SpeakerCard key={s.id} s={s} />)
               ) : (
@@ -125,13 +171,23 @@ export default function Home() {
           </div>
         </section>
 
-        {/* FAQ CTA */}
+        {/* FAQ */}
         <section className="mt-6">
-          <div className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-6">
-            <h3 className="text-xl font-bold text-umgBlue">Preguntas frecuentes</h3>
-            <ul className="text-slate-700 list-disc pl-5 mt-2 space-y-1">
-              <li>¿Cómo me inscribo? → <Link to="/register" className="text-umgBlue underline">Inscripciones</Link></li>
-              <li>¿Dónde veo resultados? → <Link to="/results" className="text-umgBlue underline">Resultados</Link></li>
+          <div className="bg-white text-slate-800 rounded-2xl shadow-soft border border-white/20 p-4 sm:p-6">
+            <h3 className="text-lg sm:text-xl font-bold text-umgBlue">Preguntas frecuentes</h3>
+            <ul className="text-slate-700 list-disc pl-5 mt-2 space-y-1 text-sm sm:text-base">
+              <li>
+                ¿Cómo me inscribo? →{" "}
+                <Link to="/register" className="text-umgBlue underline">
+                  Inscripciones
+                </Link>
+              </li>
+              <li>
+                ¿Dónde veo resultados? →{" "}
+                <Link to="/results" className="text-umgBlue underline">
+                  Resultados
+                </Link>
+              </li>
               <li>¿Hay constancias? → Sí, se generan diplomas para asistentes (admin).</li>
             </ul>
           </div>
