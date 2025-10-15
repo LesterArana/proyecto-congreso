@@ -1,66 +1,106 @@
 // server/src/utils/mailer.js
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
+import sgMail from "@sendgrid/mail";
 
-async function buildTransport() {
-  const MODE = (process.env.MAIL_MODE || '').toLowerCase();
-
-  if (MODE === 'stream') {
-    const transporter = nodemailer.createTransport({
-      streamTransport: true,
-      newline: 'unix',
-      buffer: true,
-    });
-    return { transporter, from: 'Congreso Tech <no-reply@dev.local>', mode: 'stream' };
-  }
-
-  const hasSmtp = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
-  if (MODE === 'smtp' || (MODE === '' && hasSmtp)) {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: String(process.env.SMTP_SECURE || 'false') === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-    return { transporter, from: process.env.SMTP_FROM || process.env.SMTP_USER, mode: 'smtp' };
-  }
-
-  // ethereal (testing con preview URL)
-  try {
-    const testAccount = await nodemailer.createTestAccount();
-    const transporter = nodemailer.createTransport({
-      host: testAccount.smtp.host,
-      port: testAccount.smtp.port,
-      secure: testAccount.smtp.secure,
-      auth: { user: testAccount.user, pass: testAccount.pass },
-    });
-    return { transporter, from: 'Congreso Tech <no-reply@ethereal.email>', mode: 'ethereal' };
-  } catch {
-    // cae a stream si falla
-    const transporter = nodemailer.createTransport({
-      streamTransport: true,
-      newline: 'unix',
-      buffer: true,
-    });
-    return { transporter, from: 'Congreso Tech <no-reply@dev.local>', mode: 'stream' };
-  }
+// 1) SendGrid (HTTP API) — sin SMTP
+function canUseSendGrid() {
+  return !!process.env.SENDGRID_API_KEY;
 }
 
+/**
+ * sendMail({ to, subject, html, attachments })
+ * attachments: [{ filename, path|content, contentType, cid? }]
+ */
 export async function sendMail({ to, subject, html, attachments = [] }) {
   try {
-    const { transporter, from, mode } = await buildTransport();
+    // ========= Opción A: SendGrid =========
+    if (canUseSendGrid()) {
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
+      const from =
+        process.env.SMTP_FROM ||
+        process.env.MAIL_FROM ||
+        process.env.SENDGRID_FROM ||
+        "no-reply@onboarding.sendgrid.net"; // se reemplaza si seteas SENDGRID_FROM
+
+      // Mapear adjuntos (cid opcional para inline)
+      const sgAttachments = await Promise.all(
+        attachments.map(async (a) => {
+          // a.content (Buffer) o a.path (ruta absoluta)
+          if (a.content) {
+            return {
+              filename: a.filename,
+              type: a.contentType || undefined,
+              content: Buffer.isBuffer(a.content)
+                ? a.content.toString("base64")
+                : Buffer.from(String(a.content)).toString("base64"),
+              disposition: a.cid ? "inline" : "attachment",
+              content_id: a.cid || undefined,
+            };
+          } else if (a.path) {
+            const fs = await import("fs/promises");
+            const data = await fs.readFile(a.path);
+            return {
+              filename: a.filename,
+              type: a.contentType || undefined,
+              content: data.toString("base64"),
+              disposition: a.cid ? "inline" : "attachment",
+              content_id: a.cid || undefined,
+            };
+          }
+          return null;
+        })
+      );
+
+      const msg = {
+        to,
+        from, // DEBE ser un sender verificado en SendGrid (Single Sender) o un dominio autenticado
+        subject,
+        html,
+        attachments: sgAttachments.filter(Boolean),
+      };
+
+      const [resp] = await sgMail.send(msg);
+      // 2xx esperado
+      return { mode: "sendgrid", preview: null, error: null, status: resp?.statusCode };
+    }
+
+    // ========= Opción B: Ethereal (preview) =========
+    if ((process.env.MAIL_MODE || "").toLowerCase() === "ethereal") {
+      const testAccount = await nodemailer.createTestAccount();
+      const transporter = nodemailer.createTransport({
+        host: testAccount.smtp.host,
+        port: testAccount.smtp.port,
+        secure: testAccount.smtp.secure,
+        auth: { user: testAccount.user, pass: testAccount.pass },
+      });
+      const info = await transporter.sendMail({
+        from: "Congreso Tech <no-reply@ethereal.email>",
+        to,
+        subject,
+        html,
+        attachments,
+      });
+      const preview = nodemailer.getTestMessageUrl(info);
+      console.log("📨 Ethereal preview:", preview);
+      return { mode: "ethereal", preview, error: null };
+    }
+
+    // ========= Opción C: Stream (no envía, útil para logs) =========
+    const transporter = nodemailer.createTransport({
+      streamTransport: true,
+      newline: "unix",
+      buffer: true,
+    });
     const info = await transporter.sendMail({
-      from: process.env.MAIL_FROM || from,
+      from: "Congreso Tech <no-reply@dev.local>",
       to,
       subject,
       html,
       attachments,
     });
-
-    const preview = (mode === 'ethereal') ? (nodemailer.getTestMessageUrl?.(info) || null) : null;
-
-    console.log(`📨 Correo enviado [${mode}]`, info.messageId, preview || '');
-    return { mode, preview, error: null };
+    console.log("📨 STREAM (no real):", info.message?.toString()?.slice(0, 200) || "");
+    return { mode: "stream", preview: null, error: null };
   } catch (err) {
     console.error("❌ Error enviando correo:", err?.message || err);
     return { mode: "error", preview: null, error: err?.message || String(err) };
