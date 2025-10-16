@@ -3,20 +3,19 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import CameraCapture from "../components/CameraCapture";
 
-
 const emptyForm = {
   activityId: "",
   userId: "",
   place: 1,
   description: "",
   photoUrl: "",
-  onlyAttended: true, // filtrar lista de usuarios por asistencias
+  onlyAttended: true,
 };
 
 export default function AdminWinners() {
   const [activities, setActivities] = useState([]);
-  const [regs, setRegs] = useState([]); // inscripciones de la actividad elegida
-  const [items, setItems] = useState([]); // ganadores listados
+  const [regs, setRegs] = useState([]);
+  const [items, setItems] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -222,11 +221,25 @@ export default function AdminWinners() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-6">
-          <h2 className="text-2xl font-bold text-umgBlue mb-2">
-            Resultados (Admin)
-          </h2>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-3">
+            <div>
+              <h2 className="text-balance text-[clamp(1.25rem,2.5vw,1.75rem)] font-bold text-umgBlue">
+                Resultados (Admin)
+              </h2>
+              <p className="text-slate-600 text-sm">
+                Crea, edita y publica ganadores por actividad.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadWinners}
+              className="rounded-xl border px-4 py-2 hover:bg-slate-50 w-full sm:w-auto"
+            >
+              Refrescar lista
+            </button>
+          </div>
 
           {/* Mensajes */}
           {msg && (
@@ -244,39 +257,30 @@ export default function AdminWinners() {
           {/* Formulario */}
           <form onSubmit={submit} className="grid gap-4 mb-6">
             {/* 1) Actividad */}
-            <div>
+            <div className="grid gap-2">
               <label className="font-semibold">Actividad</label>
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-center mt-1">
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <select
                   value={form.activityId}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, activityId: e.target.value }))
                   }
-                  className="rounded-xl border border-slate-300 px-3 py-2 w-full sm:w-auto focus:ring-umgBlue focus:border-umgBlue outline-none"
+                  className="rounded-xl border border-slate-300 px-3 py-2 w-full sm:w-80 focus:ring-umgBlue focus:border-umgBlue outline-none"
                   required
                 >
                   <option value="">— Selecciona actividad —</option>
                   {activities.map((a) => (
                     <option key={a.id} value={a.id}>
-                      #{a.id} — {a.title} (
-                      {new Date(a.date).toLocaleDateString()})
+                      #{a.id} — {a.title} ({new Date(a.date).toLocaleDateString()})
                     </option>
                   ))}
                 </select>
-
-                <button
-                  type="button"
-                  onClick={loadWinners}
-                  className="rounded-xl border px-4 py-2 hover:bg-slate-50"
-                >
-                  Refrescar lista
-                </button>
               </div>
             </div>
 
             {/* 2) Filtro y usuario */}
-            <div className="grid gap-2">
-              <div className="flex items-center gap-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-2">
                 <label className="inline-flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -290,14 +294,14 @@ export default function AdminWinners() {
                 </label>
                 <small className="text-slate-500">
                   {regs.length
-                    ? `Registros cargados: ${regs.length} — disponibles: ${userOptions.length}`
+                    ? `Registros: ${regs.length} — disponibles: ${userOptions.length}`
                     : form.activityId
                     ? "Cargando registros…"
                     : "Elige una actividad"}
                 </small>
               </div>
 
-              <div>
+              <div className="grid gap-1">
                 <label className="font-semibold">Ganador (usuario)</label>
                 <select
                   value={form.userId}
@@ -319,9 +323,9 @@ export default function AdminWinners() {
             </div>
 
             {/* 3) Lugar */}
-            <div>
-              <label className="font-semibold block mb-1">Lugar</label>
-              <div className="flex gap-2">
+            <div className="grid gap-2">
+              <label className="font-semibold">Lugar</label>
+              <div className="flex flex-wrap gap-2">
                 {[1, 2, 3].map((n) => {
                   const active = form.place === n;
                   return (
@@ -346,82 +350,99 @@ export default function AdminWinners() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, place: Number(e.target.value) }))
                   }
-                  className="ml-1 rounded-xl border border-slate-300 px-3 py-2 w-24 focus:ring-umgBlue focus:border-umgBlue outline-none"
+                  className="rounded-xl border border-slate-300 px-3 py-2 w-28 focus:ring-umgBlue focus:border-umgBlue outline-none"
                 />
               </div>
             </div>
-{/* 4) Foto y descripción */}
-<div>
-  <label className="font-semibold">Foto (URL o subida)</label>
 
-  {/* URL directa */}
-  <input
-    type="text"
-    placeholder="https://…  o  /public/winners/archivo.jpg"
-    value={form.photoUrl}
-    onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
-    className="mt-1 rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
-  />
+            {/* 4) Foto y descripción */}
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-2">
+                <label className="font-semibold">Foto (URL o subida)</label>
+                <input
+                  type="text"
+                  placeholder="https://…  o  /public/winners/archivo.jpg"
+                  value={form.photoUrl}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, photoUrl: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
+                />
 
-  {/* Subir archivo desde dispositivo */}
-  <div className="flex items-center gap-2 mt-2">
-    <input
-      type="file"
-      accept="image/*"
-      capture="environment"
-      onChange={(e) => setFile(e.target.files?.[0] || null)}
-      className="block"
-    />
-    <button
-      type="button"
-      onClick={uploadPhoto}
-      disabled={!file || uploading}
-      className={`rounded-xl px-3 py-2 text-white ${uploading ? "bg-slate-400" : "bg-sky-500 hover:brightness-105"}`}
-      title="Subir imagen al servidor"
-    >
-      {uploading ? "Subiendo..." : "Subir foto"}
-    </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    className="block"
+                  />
+                  <button
+                    type="button"
+                    onClick={uploadPhoto}
+                    disabled={!file || uploading}
+                    className={`rounded-xl px-3 py-2 text-white ${
+                      uploading ? "bg-slate-400" : "bg-sky-500 hover:brightness-105"
+                    }`}
+                    title="Subir imagen al servidor"
+                  >
+                    {uploading ? "Subiendo..." : "Subir foto"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCam(true)}
+                    className="rounded-xl px-3 py-2 border hover:bg-slate-50"
+                  >
+                    Usar cámara
+                  </button>
+                </div>
 
-    {/* Abrir cámara en modal */}
-    <button
-      type="button"
-      onClick={() => setShowCam(true)}
-      className="rounded-xl px-3 py-2 border hover:bg-slate-50"
-    >
-      Usar cámara
-    </button>
-  </div>
+                <div className="mt-2">
+                  <div className="text-sm text-slate-600 mb-1">Vista previa:</div>
+                  <div className="w-40 h-40 bg-slate-100 rounded-lg overflow-hidden grid place-items-center">
+                    {form.photoUrl ? (
+                      <img
+                        src={form.photoUrl}
+                        alt="preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-slate-500 text-xs">Sin foto</span>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-  {/* Vista previa rápida de la URL vigente */}
-  <div className="mt-3">
-    <div className="text-sm text-slate-600 mb-1">Vista previa:</div>
-    <div className="w-40 h-40 bg-slate-100 rounded-lg overflow-hidden grid place-items-center">
-      {form.photoUrl ? (
-        <img src={form.photoUrl} alt="preview" className="w-full h-full object-cover" />
-      ) : (
-        <span className="text-slate-500 text-xs">Sin foto</span>
-      )}
-    </div>
-  </div>
-</div>
+              <div className="grid gap-2">
+                <label className="font-semibold">Descripción (opcional)</label>
+                <textarea
+                  rows={6}
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, description: e.target.value }))
+                  }
+                  className="rounded-xl border border-slate-300 px-3 py-2 w-full focus:ring-umgBlue focus:border-umgBlue outline-none"
+                  placeholder="Detalle del logro, proyecto, etc."
+                />
+              </div>
+            </div>
 
-{/* Modal de cámara */}
-{showCam && (
-  <CameraCapture
-    onUploaded={(url) => setForm((f) => ({ ...f, photoUrl: url }))}
-    onClose={() => setShowCam(false)}
-  />
-)}
-
+            {/* Modal de cámara */}
+            {showCam && (
+              <CameraCapture
+                onUploaded={(url) => setForm((f) => ({ ...f, photoUrl: url }))}
+                onClose={() => setShowCam(false)}
+              />
+            )}
 
             {/* 6) Acciones */}
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
               <button
                 type="submit"
                 disabled={loading}
                 className={`rounded-xl px-4 py-2 font-semibold text-white ${
                   loading ? "bg-slate-400 cursor-not-allowed" : "bg-umgBlue hover:brightness-105"
-                }`}
+                } w-full sm:w-auto`}
               >
                 {editingId ? "Guardar cambios" : "Crear ganador"}
               </button>
@@ -433,7 +454,7 @@ export default function AdminWinners() {
                     setEditingId(null);
                     setForm((f) => ({ ...emptyForm, activityId: f.activityId }));
                   }}
-                  className="rounded-xl px-4 py-2 border hover:bg-slate-50"
+                  className="rounded-xl px-4 py-2 border hover:bg-slate-50 w-full sm:w-auto"
                 >
                   Cancelar
                 </button>
@@ -441,8 +462,77 @@ export default function AdminWinners() {
             </div>
           </form>
 
-          {/* Tabla de ganadores */}
-          <div className="overflow-x-auto">
+          {/* Listado responsive: Cards en móvil, tabla en desktop */}
+          {/* Cards (mobile) */}
+          <div className="grid gap-3 md:hidden">
+            {items.map((w) => (
+              <article key={w.id} className="border border-slate-200 rounded-2xl p-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                    {w.photoUrl ? (
+                      <img
+                        src={w.photoUrl}
+                        alt={w.activity?.title || "Ganador"}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full grid place-items-center text-slate-400 text-xs">
+                        Sin foto
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-slate-500">ID #{w.id}</div>
+                    <div className="font-semibold text-slate-900 text-sm">
+                      {w.user?.name} — <span className="text-slate-600">{w.place}° lugar</span>
+                    </div>
+                    <div className="text-sm text-slate-700 truncate">
+                      #{w.activity?.id} — {w.activity?.title}
+                    </div>
+                    {w.description && (
+                      <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">
+                        {w.description}
+                      </p>
+                    )}
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => edit(w)}
+                        className="rounded-lg px-3 py-1.5 bg-umgBlue text-white text-sm hover:brightness-105"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => del(w.id)}
+                        className="rounded-lg px-3 py-1.5 bg-rose-600 text-white text-sm hover:brightness-105"
+                      >
+                        Eliminar
+                      </button>
+                      {w.photoUrl && (
+                        <a
+                          href={w.photoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-lg px-3 py-1.5 border text-sm hover:bg-slate-50"
+                        >
+                          Ver foto
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+            {items.length === 0 && (
+              <div className="text-center text-slate-500 border rounded-xl py-6">
+                Sin ganadores
+              </div>
+            )}
+          </div>
+
+          {/* Tabla (desktop) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
@@ -462,7 +552,7 @@ export default function AdminWinners() {
                     <Td>#{w.activity?.id} — {w.activity?.title}</Td>
                     <Td>#{w.user?.id} — {w.user?.name}</Td>
                     <Td>{w.place}°</Td>
-                    <Td className="max-w-[420px] whitespace-pre-wrap">{w.description || "-"}</Td>
+                    <Td className="max-w-[520px] whitespace-pre-wrap">{w.description || "-"}</Td>
                     <Td>
                       {w.photoUrl ? (
                         <a
