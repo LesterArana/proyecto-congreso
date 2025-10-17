@@ -193,9 +193,7 @@ export default function AdminActivityDiplomas() {
             </table>
           </div>
 
-          <p className="text-xs text-slate-500 mt-3">
-            Consejo: verifica que el token admin se envíe y que el ID de actividad sea correcto.
-          </p>
+         
         </div>
       </div>
     </div>
